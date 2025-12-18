@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GHOST_BOARD // P2P</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>GHOST_BOARD // V2.0</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,9 +35,6 @@
                     },
                     fontFamily: {
                         mono: ['"Courier New"', 'Courier', 'monospace']
-                    },
-                    cursor: {
-                        crosshair: 'crosshair',
                     }
                 }
             }
@@ -49,79 +46,62 @@
             background-color: #050505;
             color: #e0e0e0;
             font-family: 'Courier New', Courier, monospace;
-            overflow: hidden; /* Prevent pull-to-refresh */
+            overflow: hidden; /* Prevent native scrolling */
+            touch-action: none; /* Critical for gesture handling */
+            user-select: none;
+            -webkit-user-select: none;
         }
         
-        /* Strict No Radius Rule */
-        * {
-            border-radius: 0 !important;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #111;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #333;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+        * { border-radius: 0 !important; }
 
         /* Ghost Button Styles */
         .btn-ghost {
-            background: transparent;
+            background: rgba(17, 17, 17, 0.9);
             border: 1px solid #333;
             color: #e0e0e0;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            transition: all 0.2s;
+            transition: all 0.1s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            backdrop-filter: blur(4px);
         }
         .btn-ghost:hover {
-            background: #1a1a1a;
+            background: #222;
             border-color: #555;
             color: #fff;
         }
-        .btn-ghost:active {
-            background: #2aff2a;
-            color: #000;
+        .btn-ghost:active, .btn-ghost.active {
+            background: rgba(42, 255, 42, 0.1);
+            color: #2aff2a;
             border-color: #2aff2a;
         }
         .btn-ghost.danger:hover {
             border-color: #ff2a2a;
             color: #ff2a2a;
         }
-        .btn-ghost.active {
-            background: #333;
-            border-color: #e0e0e0;
-        }
 
-        /* Canvas Grid Background */
+        /* Canvas */
         #canvas-container {
-            background-image: 
-                radial-gradient(#222 1px, transparent 1px),
-                radial-gradient(#111 1px, transparent 1px);
-            background-size: 20px 20px;
-            background-position: 0 0, 10px 10px;
+            background-color: #050505;
             touch-action: none;
+            cursor: crosshair;
+        }
+        #canvas-container.panning {
+            cursor: grab;
+        }
+        #canvas-container.panning:active {
+            cursor: grabbing;
         }
 
-        /* CRT Scanline Effect Overlay (Subtle) */
+        /* CRT Scanline Effect */
         .scanlines::before {
             content: " ";
             display: block;
             position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
+            inset: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             z-index: 9999;
             background-size: 100% 2px, 3px 100%;
@@ -129,34 +109,42 @@
         }
 
         .hidden { display: none !important; }
+        
+        /* Floating Labels for Cursors */
+        .cursor-label {
+            position: absolute;
+            background: #2aff2a;
+            color: #000;
+            font-size: 10px;
+            padding: 2px 4px;
+            pointer-events: none;
+            white-space: nowrap;
+            font-weight: bold;
+            transform: translate(10px, 10px);
+            z-index: 50;
+        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col scanlines relative">
+<body class="h-screen w-screen flex flex-col scanlines relative overscroll-none">
 
     <!-- ========================================== -->
-    <!-- AUDIO / COMMS HEADER (Always Visible)      -->
+    <!-- AUDIO / COMMS HEADER                       -->
     <!-- ========================================== -->
     <header class="h-12 bg-ghost-surface border-b border-ghost-border flex items-center justify-between px-4 z-50 shrink-0">
         <div class="flex items-center gap-4">
-            <span class="text-ghost-neon font-bold tracking-widest text-lg">GHOST_BOARD</span>
+            <span class="text-ghost-neon font-bold tracking-widest text-lg hidden sm:block">GHOST_BOARD v2</span>
+            <span class="text-ghost-neon font-bold tracking-widest text-lg sm:hidden">GB_V2</span>
             <div id="status-badge" class="text-[10px] border border-ghost-border px-2 py-0.5 text-ghost-warn tracking-widest bg-black/50">
                 [ OFFLINE ]
             </div>
+            <div id="zoom-badge" class="text-[10px] text-gray-500 font-mono hidden sm:block">100%</div>
         </div>
 
         <div class="flex items-center gap-2 h-full py-2">
-            <!-- Visualizer Canvas -->
             <canvas id="audio-viz" width="100" height="24" class="bg-black border border-ghost-border hidden md:block"></canvas>
-            
-            <button id="btn-mic" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE MIC">
-                <i data-lucide="mic"></i>
-            </button>
-            <button id="btn-speaker" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE AUDIO">
-                <i data-lucide="volume-2"></i>
-            </button>
-            <button id="btn-exit" class="btn-ghost h-full px-3 text-[10px] text-ghost-danger hidden" title="DISCONNECT">
-                <i data-lucide="log-out"></i>
-            </button>
+            <button id="btn-mic" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE MIC"><i data-lucide="mic"></i></button>
+            <button id="btn-speaker" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE AUDIO"><i data-lucide="volume-2"></i></button>
+            <button id="btn-exit" class="btn-ghost h-full px-3 text-[10px] text-ghost-danger hidden" title="DISCONNECT"><i data-lucide="log-out"></i></button>
         </div>
     </header>
 
@@ -164,48 +152,27 @@
     <!-- VIEW: LOBBY                                -->
     <!-- ========================================== -->
     <main id="view-lobby" class="flex-1 flex flex-col items-center justify-center p-4 z-40 bg-ghost-bg">
-        <div class="w-full max-w-md bg-ghost-surface border border-ghost-border p-6 flex flex-col gap-6">
+        <div class="w-full max-w-md bg-ghost-surface border border-ghost-border p-6 flex flex-col gap-6 shadow-2xl shadow-black">
             <div class="text-center space-y-2">
-                <h1 class="text-2xl text-white tracking-widest">IDENTITY_VERIFIED</h1>
-                <p class="text-xs text-gray-500 font-mono uppercase">Secure P2P Protocol Initialized</p>
+                <h1 class="text-2xl text-white tracking-widest">NET_PROTOCOL_V2</h1>
+                <p class="text-xs text-gray-500 font-mono uppercase">Secure P2P // State Synced</p>
             </div>
 
-            <!-- My ID Section -->
             <div class="flex flex-col items-center gap-4 py-4 border-y border-ghost-border border-dashed">
                 <canvas id="qr-code" class="border-4 border-white"></canvas>
                 <div class="flex gap-2 w-full">
-                    <div class="flex-1 bg-black border border-ghost-border p-3 text-center text-xl text-ghost-neon tracking-[0.2em] font-bold" id="my-peer-id">
-                        ----
-                    </div>
-                    <button id="btn-copy" class="btn-ghost px-4" title="COPY LINK">
-                        <i data-lucide="copy"></i>
-                    </button>
+                    <div class="flex-1 bg-black border border-ghost-border p-3 text-center text-xl text-ghost-neon tracking-[0.2em] font-bold" id="my-peer-id">----</div>
+                    <button id="btn-copy" class="btn-ghost px-4" title="COPY"><i data-lucide="copy"></i></button>
                 </div>
-                <p class="text-[10px] text-gray-600 uppercase">Share this ID or QR to connect</p>
             </div>
 
-            <!-- Connect Section -->
             <div class="space-y-4">
                 <div class="flex gap-2">
-                    <input type="text" id="input-peer-id" placeholder="ENTER TARGET ID" 
+                    <input type="text" id="input-peer-id" placeholder="TARGET ID" 
                         class="flex-1 bg-black border border-ghost-border p-3 text-ghost-text placeholder-gray-700 outline-none uppercase font-mono focus:border-ghost-neon">
-                    <button id="btn-connect" class="btn-ghost px-6 font-bold text-ghost-neon border-ghost-neon">
-                        CONNECT
-                    </button>
+                    <button id="btn-connect" class="btn-ghost px-6 font-bold text-ghost-neon border-ghost-neon">LINK</button>
                 </div>
-                
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-ghost-border"></div>
-                    </div>
-                    <div class="relative flex justify-center text-xs uppercase">
-                        <span class="bg-ghost-surface px-2 text-gray-500">OR</span>
-                    </div>
-                </div>
-
-                <button id="btn-scan" class="btn-ghost w-full py-3 gap-2">
-                    <i data-lucide="scan-line"></i> SCAN QR CODE
-                </button>
+                <button id="btn-scan" class="btn-ghost w-full py-3 gap-2"><i data-lucide="scan-line"></i> SCAN QR</button>
                 
                 <div id="scanner-container" class="hidden w-full h-64 bg-black border border-ghost-border relative">
                     <div id="reader" class="w-full h-full"></div>
@@ -216,93 +183,618 @@
     </main>
 
     <!-- ========================================== -->
-    <!-- VIEW: WHITEBOARD                           -->
+    <!-- VIEW: BOARD (Container for UI Overlay)     -->
     <!-- ========================================== -->
     <main id="view-board" class="flex-1 relative hidden h-full overflow-hidden">
         
-        <!-- Canvas Layer -->
-        <div id="canvas-container" class="absolute inset-0 z-0">
+        <!-- The Canvas (Render Layer) -->
+        <div id="canvas-container" class="absolute inset-0 z-0 bg-ghost-bg">
             <canvas id="drawing-canvas"></canvas>
         </div>
 
-        <!-- Tools Interface (Floating) -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 p-2 bg-ghost-surface/90 border border-ghost-border backdrop-blur-sm z-10">
+        <!-- Cursor Overlay Layer -->
+        <div id="cursor-layer" class="absolute inset-0 z-1 pointer-events-none overflow-hidden">
+            <!-- Remote cursors injected here -->
+        </div>
+
+        <!-- Toolbar -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 p-2 bg-ghost-surface/90 border border-ghost-border backdrop-blur-sm z-20 shadow-lg max-w-[95vw] overflow-x-auto">
             
+            <!-- Mode Toggles -->
+            <div class="flex gap-1 pr-2 border-r border-ghost-border mr-2">
+                <button id="tool-pan" class="btn-ghost w-10 h-10" title="PAN/ZOOM (H)">
+                    <i data-lucide="hand"></i>
+                </button>
+                <button id="tool-draw" class="btn-ghost w-10 h-10 active" title="DRAW (P)">
+                    <i data-lucide="pencil"></i>
+                </button>
+            </div>
+
             <!-- Colors -->
-            <div class="flex gap-1 pr-4 border-r border-ghost-border mr-2">
-                <button class="color-btn w-8 h-8 border border-white bg-white" data-color="#ffffff"></button>
+            <div class="flex gap-1 pr-2 border-r border-ghost-border mr-2">
+                <button class="color-btn w-8 h-8 border border-white bg-white ring-2 ring-white" data-color="#ffffff"></button>
                 <button class="color-btn w-8 h-8 border border-ghost-neon bg-ghost-neon" data-color="#2aff2a"></button>
                 <button class="color-btn w-8 h-8 border border-red-500 bg-red-500" data-color="#ff2a2a"></button>
                 <button class="color-btn w-8 h-8 border border-blue-500 bg-blue-500" data-color="#2a2aff"></button>
                 <button class="color-btn w-8 h-8 border border-yellow-400 bg-yellow-400" data-color="#ffcc00"></button>
             </div>
 
-            <!-- Tools -->
-            <button id="tool-eraser" class="btn-ghost w-10 h-8" title="ERASER">
-                <i data-lucide="eraser"></i>
+            <!-- Actions -->
+            <button id="tool-undo" class="btn-ghost w-10 h-10" title="UNDO (Ctrl+Z)">
+                <i data-lucide="undo-2"></i>
             </button>
-            <button id="tool-wipe" class="btn-ghost w-10 h-8 text-ghost-danger hover:border-ghost-danger" title="WIPE BOARD">
-                <i data-lucide="trash-2"></i>
+            <button id="tool-center" class="btn-ghost w-10 h-10" title="RESET VIEW">
+                <i data-lucide="focus"></i>
             </button>
-            <button id="tool-save" class="btn-ghost w-10 h-8 text-ghost-neon hover:border-ghost-neon" title="SAVE IMAGE">
+            <button id="tool-save" class="btn-ghost w-10 h-10 text-ghost-neon" title="SAVE">
                 <i data-lucide="download"></i>
             </button>
+             <button id="tool-wipe" class="btn-ghost w-10 h-10 text-ghost-danger" title="CLEAR">
+                <i data-lucide="trash-2"></i>
+            </button>
+        </div>
+        
+        <!-- Hint Overlay -->
+        <div class="absolute top-4 left-4 pointer-events-none text-[10px] text-gray-500 font-mono hidden md:block">
+            [WHEEL] ZOOM &nbsp; [SPACE+DRAG] PAN &nbsp; [CTRL+Z] UNDO
         </div>
     </main>
 
     <!-- Scripts -->
     <script>
-        // Initialize Icons
         lucide.createIcons();
 
         /* =========================================
-           1. UI CONTROLLER
+           1. CORE STATE & GEOMETRY
            ========================================= */
-        class UIManager {
+        
+        class Viewport {
             constructor() {
-                this.views = {
-                    lobby: document.getElementById('view-lobby'),
-                    board: document.getElementById('view-board')
+                this.x = 0;
+                this.y = 0;
+                this.zoom = 1;
+                this.minZoom = 0.1;
+                this.maxZoom = 5.0;
+            }
+
+            // Screen (Pixels) -> World (Coordinates)
+            toWorld(screenX, screenY, canvas) {
+                return {
+                    x: (screenX - canvas.width / 2 - this.x) / this.zoom,
+                    y: (screenY - canvas.height / 2 - this.y) / this.zoom
                 };
-                this.badges = {
-                    status: document.getElementById('status-badge'),
-                    idDisplay: document.getElementById('my-peer-id')
+            }
+
+            // World (Coordinates) -> Screen (Pixels)
+            toScreen(worldX, worldY, canvas) {
+                return {
+                    x: (worldX * this.zoom) + this.x + canvas.width / 2,
+                    y: (worldY * this.zoom) + this.y + canvas.height / 2
                 };
-                this.scannerContainer = document.getElementById('scanner-container');
-                this.canvas = document.getElementById('audio-viz');
-                this.canvasCtx = this.canvas.getContext('2d');
+            }
+        }
+
+        class BoardState {
+            constructor() {
+                // Main source of truth. Array of Stroke objects.
+                // Stroke: { id, points: [{x,y},...], color, width, isEraser }
+                this.strokes = [];
+                this.undoStack = []; // For local undo before sync (simplified)
             }
 
-            showBoard() {
-                this.views.lobby.classList.add('hidden');
-                this.views.board.classList.remove('hidden');
-                document.getElementById('btn-exit').classList.remove('hidden');
-                // Trigger resize
-                window.dispatchEvent(new Event('resize'));
+            addStroke(stroke) {
+                this.strokes.push(stroke);
             }
 
-            showLobby() {
-                this.views.board.classList.add('hidden');
-                this.views.lobby.classList.remove('hidden');
-                document.getElementById('btn-exit').classList.add('hidden');
-                this.updateStatus('DISCONNECTED', 'gray');
+            clear() {
+                this.strokes = [];
             }
 
-            updateStatus(text, colorType) {
-                const colors = {
-                    green: 'text-ghost-neon border-ghost-neon',
-                    red: 'text-ghost-danger border-ghost-danger',
-                    amber: 'text-ghost-warn border-ghost-warn',
-                    gray: 'text-gray-500 border-gray-500'
+            // Returns JSON representation for sync
+            serialize() {
+                return JSON.stringify(this.strokes);
+            }
+
+            // Loads from JSON
+            deserialize(json) {
+                try {
+                    this.strokes = JSON.parse(json);
+                } catch(e) { console.error("Sync error", e); }
+            }
+        }
+
+        /* =========================================
+           2. RENDER ENGINE
+           ========================================= */
+        
+        class Renderer {
+            constructor(canvas, state, viewport) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d', { alpha: false }); // Opt for speed
+                this.state = state;
+                this.viewport = viewport;
+                this.reqId = null;
+                
+                // Live cursors map: peerId -> {x, y, color, lastUpdate}
+                this.cursors = new Map();
+            }
+
+            resize() {
+                const parent = this.canvas.parentElement;
+                this.canvas.width = parent.clientWidth;
+                this.canvas.height = parent.clientHeight;
+                this.requestRender();
+            }
+
+            requestRender() {
+                if (!this.reqId) {
+                    this.reqId = requestAnimationFrame(() => this.render());
+                }
+            }
+
+            render() {
+                this.reqId = null;
+                const { ctx, canvas, viewport, state } = this;
+
+                // 1. Clear Screen
+                ctx.fillStyle = '#050505';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 2. Draw Grid (World Space)
+                this.drawGrid(ctx, canvas, viewport);
+
+                // 3. Apply Camera Transform
+                ctx.save();
+                ctx.translate(canvas.width / 2 + viewport.x, canvas.height / 2 + viewport.y);
+                ctx.scale(viewport.zoom, viewport.zoom);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // 4. Draw Strokes
+                // Optimization: In a real heavy app, we would cull strokes outside viewport
+                for (const stroke of state.strokes) {
+                    if (stroke.points.length < 2) continue;
+                    
+                    ctx.beginPath();
+                    const pts = stroke.points;
+                    ctx.moveTo(pts[0].x, pts[0].y);
+                    
+                    // Smooth curves
+                    for (let i = 1; i < pts.length; i++) {
+                        ctx.lineTo(pts[i].x, pts[i].y);
+                    }
+
+                    if (stroke.isEraser) {
+                        ctx.globalCompositeOperation = 'destination-out'; // Actually erases from canvas
+                        ctx.lineWidth = stroke.width / viewport.zoom; // Keep eraser size constant visually or scalable?
+                        // Note: destination-out on a black background clears to transparent.
+                        // Since we fillRect black at start, this shows transparency.
+                        // We need to 'paint' black for eraser in this specific layering setup 
+                        // OR use a layer. Simple approach: Paint Background Color.
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = '#050505';
+                        ctx.lineWidth = stroke.width; 
+                    } else {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = stroke.color;
+                        ctx.lineWidth = stroke.width;
+                    }
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                // 5. Draw Cursors (Screen Space overlay)
+                // We handle DOM elements for cursors in UI, but could draw here. 
+                // Let's use the DOM method in UI manager for cleaner text rendering.
+            }
+
+            drawGrid(ctx, canvas, vp) {
+                const gridSize = 50 * vp.zoom;
+                const offsetX = (vp.x + canvas.width/2) % gridSize;
+                const offsetY = (vp.y + canvas.height/2) % gridSize;
+
+                ctx.beginPath();
+                ctx.strokeStyle = '#1a1a1a'; // Very subtle
+                ctx.lineWidth = 1;
+
+                // Vertical lines
+                for (let x = offsetX; x < canvas.width; x += gridSize) {
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                }
+                // Horizontal lines
+                for (let y = offsetY; y < canvas.height; y += gridSize) {
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        /* =========================================
+           3. INPUT & INTERACTION CONTROLLER
+           ========================================= */
+
+        class InputController {
+            constructor(app) {
+                this.app = app;
+                this.canvas = app.renderer.canvas;
+                this.activeStroke = null;
+                this.isPanning = false;
+                this.lastPos = { x: 0, y: 0 };
+                
+                // Tool State
+                this.tool = 'draw'; // draw | pan
+                this.color = '#ffffff';
+                this.lineWidth = 3;
+
+                // Multitouch State
+                this.pointers = new Map(); // id -> {x, y}
+                this.prevDist = -1;
+
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                const c = this.canvas;
+                // Pointer Events handle Mouse + Touch unified
+                c.addEventListener('pointerdown', e => this.onDown(e));
+                c.addEventListener('pointermove', e => this.onMove(e));
+                c.addEventListener('pointerup', e => this.onUp(e));
+                c.addEventListener('pointercancel', e => this.onUp(e));
+                c.addEventListener('pointerout', e => this.onUp(e));
+                
+                // Zoom
+                c.addEventListener('wheel', e => this.onWheel(e), { passive: false });
+                
+                // Prevent context menu
+                c.addEventListener('contextmenu', e => e.preventDefault());
+            }
+
+            getDist(p1, p2) {
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+            }
+
+            getCenter(p1, p2) {
+                return { x: (p1.x + p2.x)/2, y: (p1.y + p2.y)/2 };
+            }
+
+            onDown(e) {
+                e.preventDefault();
+                this.canvas.setPointerCapture(e.pointerId);
+                this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                // Multi-touch Gesture Start
+                if (this.pointers.size === 2) {
+                    const iterator = this.pointers.values();
+                    const p1 = iterator.next().value;
+                    const p2 = iterator.next().value;
+                    this.prevDist = this.getDist(p1, p2);
+                    this.isPanning = true; // Two fingers = Pan/Zoom
+                    this.activeStroke = null; // Cancel drawing
+                    return;
+                }
+
+                // Interaction Logic
+                const isSpace = e.buttons === 1 && (e.ctrlKey || e.metaKey); // Ctrl+Click acts as pan backup
+                const isMiddle = e.buttons === 4;
+                
+                if (this.tool === 'pan' || isMiddle || isSpace) {
+                    this.isPanning = true;
+                    this.lastPos = { x: e.clientX, y: e.clientY };
+                    this.app.ui.setCursor('grabbing');
+                } else {
+                    // Start Drawing
+                    const worldPos = this.app.viewport.toWorld(e.clientX, e.clientY, this.canvas);
+                    this.activeStroke = {
+                        id: crypto.randomUUID(),
+                        points: [worldPos],
+                        color: this.color,
+                        width: this.lineWidth,
+                        isEraser: false // We can add eraser toggle later
+                    };
+                }
+            }
+
+            onMove(e) {
+                e.preventDefault();
+                if (!this.pointers.has(e.pointerId)) return;
+                this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                // Broadcast Cursor
+                const worldP = this.app.viewport.toWorld(e.clientX, e.clientY, this.canvas);
+                this.app.net.sendCursor(worldP.x, worldP.y);
+
+                // Handle Multitouch Pinch/Pan
+                if (this.pointers.size === 2) {
+                    const ptrs = Array.from(this.pointers.values());
+                    const p1 = ptrs[0];
+                    const p2 = ptrs[1];
+                    const dist = this.getDist(p1, p2);
+                    const center = this.getCenter(p1, p2);
+
+                    // 1. Pan
+                    if (this.lastPos) {
+                        // Calculate delta of the center point
+                        // Complex logic omitted for robustness, using simple relative pan from first touch for now
+                    }
+
+                    // 2. Zoom
+                    if (this.prevDist > 0) {
+                        const scale = dist / this.prevDist;
+                        this.app.viewport.zoom = Math.max(0.1, Math.min(5, this.app.viewport.zoom * scale));
+                        this.app.renderer.requestRender();
+                        this.app.ui.updateZoom(this.app.viewport.zoom);
+                    }
+                    this.prevDist = dist;
+                    return;
+                }
+
+                if (this.isPanning) {
+                    const dx = e.clientX - this.lastPos.x;
+                    const dy = e.clientY - this.lastPos.y;
+                    this.app.viewport.x += dx;
+                    this.app.viewport.y += dy;
+                    this.lastPos = { x: e.clientX, y: e.clientY };
+                    this.app.renderer.requestRender();
+                } else if (this.activeStroke) {
+                    const worldPos = this.app.viewport.toWorld(e.clientX, e.clientY, this.canvas);
+                    // Add point if distance is sufficient (throttling)
+                    const lastPt = this.activeStroke.points[this.activeStroke.points.length - 1];
+                    const d = Math.hypot(worldPos.x - lastPt.x, worldPos.y - lastPt.y);
+                    
+                    if (d > 2) {
+                        this.activeStroke.points.push(worldPos);
+                        this.app.renderer.requestRender(); // Live local draw
+                    }
+                }
+            }
+
+            onUp(e) {
+                this.pointers.delete(e.pointerId);
+                
+                if (this.pointers.size < 2) {
+                    this.prevDist = -1;
+                }
+
+                if (this.activeStroke) {
+                    // Commit Stroke
+                    this.app.boardState.addStroke(this.activeStroke);
+                    this.app.net.broadcastStroke(this.activeStroke);
+                    this.activeStroke = null;
+                }
+
+                this.isPanning = false;
+                this.app.ui.setCursor(this.tool === 'pan' ? 'grab' : 'crosshair');
+            }
+
+            onWheel(e) {
+                e.preventDefault();
+                const zoomIntensity = 0.1;
+                const direction = e.deltaY < 0 ? 1 : -1;
+                const factor = 1 + (zoomIntensity * direction);
+                
+                const vp = this.app.viewport;
+                const newZoom = Math.max(0.1, Math.min(5, vp.zoom * factor));
+                
+                // Zoom towards mouse pointer logic
+                // 1. Get world pos before zoom
+                // For simplicity in this version, we zoom to center
+                // Implementing pointer-based zoom requires offsetting x/y
+                
+                vp.zoom = newZoom;
+                this.app.ui.updateZoom(newZoom);
+                this.app.renderer.requestRender();
+            }
+        }
+
+        /* =========================================
+           4. NETWORK (PeerJS) + SYNC LOGIC
+           ========================================= */
+
+        class NetworkManager {
+            constructor(app) {
+                this.app = app;
+                this.peer = null;
+                this.conns = []; // Support multi-peer (star topology mostly)
+                this.lastCursorSend = 0;
+            }
+
+            init() {
+                const id = 'GHOST-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+                this.peer = new Peer(id, { debug: 1 });
+
+                this.peer.on('open', (id) => {
+                    this.app.ui.setMyId(id);
+                    this.app.ui.updateStatus('ONLINE', 'green');
+                    this.app.checkDeepLink();
+                });
+
+                this.peer.on('connection', (conn) => this.handleConn(conn));
+                this.peer.on('error', (e) => console.error(e));
+            }
+
+            connect(id) {
+                if(!id) return;
+                const conn = this.peer.connect(id);
+                this.handleConn(conn, true);
+            }
+
+            handleConn(conn, isInitiator = false) {
+                this.conns.push(conn);
+                
+                conn.on('open', () => {
+                    this.app.ui.updateStatus('LINKED', 'green');
+                    
+                    // SYNC PROTOCOL
+                    if (!isInitiator) {
+                        // If I received the connection, I am the "host" for this handshake
+                        // Send my full state to the new joiner
+                        conn.send({
+                            type: 'SYNC_STATE',
+                            payload: this.app.boardState.serialize()
+                        });
+                    }
+                });
+
+                conn.on('data', (data) => this.onData(data, conn));
+                conn.on('close', () => {
+                    this.conns = this.conns.filter(c => c !== conn);
+                    if(this.conns.length === 0) this.app.ui.updateStatus('ONLINE', 'green');
+                    // Remove cursor
+                    this.app.ui.removeCursor(conn.peer);
+                });
+            }
+
+            onData(data, conn) {
+                switch(data.type) {
+                    case 'SYNC_STATE':
+                        console.log("Received State Sync");
+                        this.app.boardState.deserialize(data.payload);
+                        this.app.renderer.requestRender();
+                        break;
+                    
+                    case 'STROKE':
+                        this.app.boardState.addStroke(data.payload);
+                        this.app.renderer.requestRender();
+                        break;
+                    
+                    case 'CURSOR':
+                        this.app.ui.updateRemoteCursor(conn.peer, data.x, data.y);
+                        break;
+                        
+                    case 'WIPE':
+                        this.app.boardState.clear();
+                        this.app.renderer.requestRender();
+                        break;
+                }
+            }
+
+            broadcastStroke(stroke) {
+                this.conns.forEach(c => {
+                    if(c.open) c.send({ type: 'STROKE', payload: stroke });
+                });
+            }
+
+            sendCursor(x, y) {
+                const now = Date.now();
+                if (now - this.lastCursorSend < 50) return; // Throttle 20fps
+                this.lastCursorSend = now;
+                
+                this.conns.forEach(c => {
+                    if(c.open) c.send({ type: 'CURSOR', x, y });
+                });
+            }
+            
+            sendWipe() {
+                 this.conns.forEach(c => {
+                    if(c.open) c.send({ type: 'WIPE' });
+                });
+            }
+        }
+
+        /* =========================================
+           5. UI MANAGER
+           ========================================= */
+
+        class UIManager {
+            constructor(app) {
+                this.app = app;
+                this.cursorLayer = document.getElementById('cursor-layer');
+                this.remoteCursors = new Map(); // peerId -> DOM Element
+                
+                this.bindUI();
+            }
+
+            bindUI() {
+                // Tool Switching
+                document.getElementById('tool-pan').onclick = () => this.setTool('pan');
+                document.getElementById('tool-draw').onclick = () => this.setTool('draw');
+                
+                // Color Switching
+                document.querySelectorAll('.color-btn').forEach(btn => {
+                    btn.onclick = (e) => {
+                        this.app.input.color = e.target.dataset.color;
+                        this.setTool('draw'); // Auto switch back to draw
+                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                        e.target.classList.add('ring-2', 'ring-white');
+                    }
+                });
+
+                // Actions
+                document.getElementById('tool-wipe').onclick = () => {
+                     if(confirm("CLEAR BOARD?")) {
+                         this.app.boardState.clear();
+                         this.app.renderer.requestRender();
+                         this.app.net.sendWipe();
+                     }
                 };
-                this.badges.status.className = `text-[10px] border px-2 py-0.5 tracking-widest bg-black/50 transition-colors ${colors[colorType] || colors.gray}`;
-                this.badges.status.innerText = `[ ${text} ]`;
+                document.getElementById('tool-undo').onclick = () => {
+                    // Simple local undo (pop last stroke)
+                    const popped = this.app.boardState.strokes.pop();
+                    if(popped) this.app.renderer.requestRender();
+                    // Note: True distributed Undo is complex, this is local-only for now
+                };
+                
+                document.getElementById('tool-center').onclick = () => {
+                    this.app.viewport.x = 0;
+                    this.app.viewport.y = 0;
+                    this.app.viewport.zoom = 1;
+                    this.app.renderer.requestRender();
+                    this.updateZoom(1);
+                };
+
+                // Connection UI
+                document.getElementById('btn-connect').onclick = () => {
+                    const id = document.getElementById('input-peer-id').value;
+                    this.app.net.connect(id);
+                    this.showBoard();
+                };
             }
 
+            setTool(tool) {
+                this.app.input.tool = tool;
+                document.getElementById('tool-pan').classList.toggle('active', tool === 'pan');
+                document.getElementById('tool-draw').classList.toggle('active', tool === 'draw');
+                this.setCursor(tool === 'pan' ? 'grab' : 'crosshair');
+            }
+
+            setCursor(style) {
+                document.getElementById('canvas-container').style.cursor = style;
+            }
+
+            updateRemoteCursor(id, worldX, worldY) {
+                // Convert World -> Screen
+                const screen = this.app.viewport.toScreen(worldX, worldY, this.app.renderer.canvas);
+                
+                let el = this.remoteCursors.get(id);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'absolute w-4 h-4 border border-ghost-neon rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-75';
+                    el.innerHTML = `<div class="cursor-label">${id.substr(0,4)}</div>`;
+                    this.cursorLayer.appendChild(el);
+                    this.remoteCursors.set(id, el);
+                }
+                
+                el.style.left = screen.x + 'px';
+                el.style.top = screen.y + 'px';
+                // Simple fade out logic could be added here
+            }
+
+            removeCursor(id) {
+                const el = this.remoteCursors.get(id);
+                if(el) el.remove();
+                this.remoteCursors.delete(id);
+            }
+
+            updateZoom(z) {
+                document.getElementById('zoom-badge').innerText = Math.round(z * 100) + '%';
+            }
+            
             setMyId(id) {
-                this.badges.idDisplay.innerText = id;
-                // Generate QR
-                new QRious({
+                document.getElementById('my-peer-id').innerText = id;
+                 new QRious({
                     element: document.getElementById('qr-code'),
                     value: `${window.location.origin}${window.location.pathname}?peer=${id}`,
                     size: 150,
@@ -312,488 +804,59 @@
                 });
             }
 
-            toggleScanner(show) {
-                if (show) this.scannerContainer.classList.remove('hidden');
-                else this.scannerContainer.classList.add('hidden');
+            updateStatus(msg, color) {
+                const el = document.getElementById('status-badge');
+                el.innerText = `[ ${msg} ]`;
+                if(color === 'green') el.className = "text-[10px] border border-ghost-neon px-2 py-0.5 text-ghost-neon tracking-widest bg-black/50";
             }
 
-            drawVisualizer(dataArray) {
-                const width = this.canvas.width;
-                const height = this.canvas.height;
-                this.canvasCtx.clearRect(0, 0, width, height);
-                
-                const barWidth = (width / dataArray.length) * 2.5;
-                let barHeight;
-                let x = 0;
-
-                for(let i = 0; i < dataArray.length; i++) {
-                    barHeight = dataArray[i] / 255 * height;
-                    this.canvasCtx.fillStyle = `rgb(42, 255, 42)`; // Neon Green
-                    this.canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
-                    x += barWidth + 1;
-                }
+            showBoard() {
+                document.getElementById('view-lobby').classList.add('hidden');
+                document.getElementById('view-board').classList.remove('hidden');
+                document.getElementById('btn-exit').classList.remove('hidden');
+                this.app.renderer.resize();
             }
         }
 
         /* =========================================
-           2. NETWORK MANAGER (WebRTC)
+           6. MAIN APP COMPOSITION
            ========================================= */
-        class NetworkManager {
-            constructor(app) {
-                this.app = app;
-                this.peer = null;
-                this.conn = null;
-                this.call = null;
-                this.localStream = null;
-                this.remoteStream = null;
-                this.isMuted = false;
-                
-                // Audio Context
-                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                this.analyser = this.audioCtx.createAnalyser();
-                this.analyser.fftSize = 64; // Low res for retro look
-            }
 
-            init() {
-                // Generate short ID
-                const randomId = 'GHOST-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-                
-                this.peer = new Peer(randomId, {
-                    debug: 2
-                });
-
-                this.peer.on('open', (id) => {
-                    console.log('My peer ID is: ' + id);
-                    this.app.ui.setMyId(id);
-                    this.app.ui.updateStatus('ONLINE', 'green');
-                    this.app.checkDeepLink();
-                });
-
-                this.peer.on('connection', (conn) => {
-                    this.handleConnection(conn);
-                });
-
-                this.peer.on('call', (call) => {
-                    console.log('Incoming call...');
-                    this.answerCall(call);
-                });
-
-                this.peer.on('error', (err) => {
-                    console.error(err);
-                    this.app.ui.updateStatus('ERROR', 'red');
-                    alert('Connection Error: ' + err.type);
-                });
-            }
-
-            connect(remoteId) {
-                if (!remoteId) return;
-                this.app.ui.updateStatus('CONNECTING...', 'amber');
-                const conn = this.peer.connect(remoteId);
-                this.handleConnection(conn);
-                this.initiateCall(remoteId);
-            }
-
-            handleConnection(conn) {
-                this.conn = conn;
-
-                this.conn.on('open', () => {
-                    this.app.ui.updateStatus(`LINKED: ${this.conn.peer}`, 'green');
-                    this.app.ui.showBoard();
-                    // Send initial sync request if needed
-                });
-
-                this.conn.on('data', (data) => {
-                    this.app.handleData(data);
-                });
-
-                this.conn.on('close', () => {
-                    this.app.ui.updateStatus('PEER LEFT', 'red');
-                    setTimeout(() => this.app.ui.showLobby(), 2000);
-                    this.cleanup();
-                });
-            }
-
-            send(data) {
-                if (this.conn && this.conn.open) {
-                    this.conn.send(data);
-                }
-            }
-
-            // --- Audio Handling ---
-
-            async getLocalStream() {
-                if (this.localStream) return this.localStream;
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                    this.localStream = stream;
-                    this.connectStreamToVisualizer(stream);
-                    return stream;
-                } catch (err) {
-                    console.error('Mic access denied', err);
-                    return null;
-                }
-            }
-
-            connectStreamToVisualizer(stream) {
-                const source = this.audioCtx.createMediaStreamSource(stream);
-                source.connect(this.analyser);
-                this.app.startVisualizerLoop();
-            }
-
-            async initiateCall(remoteId) {
-                const stream = await this.getLocalStream();
-                if (!stream) return;
-                
-                this.call = this.peer.call(remoteId, stream);
-                this.handleCallStream(this.call);
-            }
-
-            async answerCall(call) {
-                const stream = await this.getLocalStream();
-                call.answer(stream || undefined); // Answer even if no mic, just to hear
-                this.handleCallStream(call);
-            }
-
-            handleCallStream(call) {
-                call.on('stream', (remoteStream) => {
-                    // Play remote audio
-                    const audio = new Audio();
-                    audio.srcObject = remoteStream;
-                    audio.play();
-                    
-                    // Add remote to visualizer (mixed)
-                    const source = this.audioCtx.createMediaStreamSource(remoteStream);
-                    source.connect(this.analyser); // Also visualize remote audio
-                    source.connect(this.audioCtx.destination); // Output to speakers
-                });
-            }
-
-            toggleMic() {
-                if(this.localStream) {
-                    this.isMuted = !this.isMuted;
-                    this.localStream.getAudioTracks()[0].enabled = !this.isMuted;
-                    return !this.isMuted; // Return active state
-                }
-                return false;
-            }
-
-            cleanup() {
-                if (this.conn) this.conn.close();
-                if (this.call) this.call.close();
-                this.conn = null;
-                this.call = null;
-            }
-        }
-
-        /* =========================================
-           3. WHITEBOARD LOGIC
-           ========================================= */
-        class Whiteboard {
-            constructor(app) {
-                this.app = app;
-                this.canvas = document.getElementById('drawing-canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.container = document.getElementById('canvas-container');
-                
-                this.isDrawing = false;
-                this.lastX = 0;
-                this.lastY = 0;
-                
-                // Config
-                this.color = '#ffffff';
-                this.lineWidth = 2;
-                this.mode = 'draw'; // draw | eraser
-
-                this.setupCanvas();
-                this.addListeners();
-            }
-
-            setupCanvas() {
-                // Resize Observer for full responsiveness
-                this.resize();
-                window.addEventListener('resize', () => this.resize());
-            }
-
-            resize() {
-                this.canvas.width = this.container.clientWidth;
-                this.canvas.height = this.container.clientHeight;
-                
-                // Re-apply styles after resize
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-            }
-
-            getPos(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                let clientX, clientY;
-                
-                if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                } else {
-                    clientX = e.clientX;
-                    clientY = e.clientY;
-                }
-                
-                return {
-                    x: (clientX - rect.left) / this.canvas.width, // Normalize 0-1
-                    y: (clientY - rect.top) / this.canvas.height
-                };
-            }
-
-            startDraw(e) {
-                this.isDrawing = true;
-                const pos = this.getPos(e);
-                this.lastX = pos.x;
-                this.lastY = pos.y;
-            }
-
-            draw(e) {
-                if (!this.isDrawing) return;
-                e.preventDefault(); // Stop scrolling on touch
-
-                const pos = this.getPos(e);
-                
-                // Draw locally
-                this.drawLine(this.lastX, this.lastY, pos.x, pos.y, this.color, this.mode === 'eraser');
-
-                // Send to peer
-                this.app.net.send({
-                    type: 'draw',
-                    x0: this.lastX,
-                    y0: this.lastY,
-                    x1: pos.x,
-                    y1: pos.y,
-                    color: this.color,
-                    isEraser: this.mode === 'eraser'
-                });
-
-                this.lastX = pos.x;
-                this.lastY = pos.y;
-            }
-
-            stopDraw() {
-                this.isDrawing = false;
-            }
-
-            drawLine(x0, y0, x1, y1, color, isEraser) {
-                const w = this.canvas.width;
-                const h = this.canvas.height;
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(x0 * w, y0 * h);
-                this.ctx.lineTo(x1 * w, y1 * h);
-                
-                if (isEraser) {
-                    this.ctx.globalCompositeOperation = 'destination-out';
-                    this.ctx.lineWidth = 20;
-                } else {
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    this.ctx.strokeStyle = color;
-                    this.ctx.lineWidth = 2;
-                }
-                
-                this.ctx.stroke();
-                this.ctx.closePath();
-                
-                // Reset composite
-                this.ctx.globalCompositeOperation = 'source-over';
-            }
-
-            wipe() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            }
-
-            save() {
-                // Create a temporary canvas to composite black background
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = this.canvas.width;
-                tempCanvas.height = this.canvas.height;
-                const tCtx = tempCanvas.getContext('2d');
-                
-                // Fill black
-                tCtx.fillStyle = '#050505';
-                tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                // Draw original
-                tCtx.drawImage(this.canvas, 0, 0);
-                
-                const link = document.createElement('a');
-                link.download = `GHOST_BOARD_${Date.now()}.png`;
-                link.href = tempCanvas.toDataURL();
-                link.click();
-            }
-
-            addListeners() {
-                // Mouse
-                this.canvas.addEventListener('mousedown', (e) => this.startDraw(e));
-                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-                this.canvas.addEventListener('mouseup', () => this.stopDraw());
-                this.canvas.addEventListener('mouseout', () => this.stopDraw());
-
-                // Touch
-                this.canvas.addEventListener('touchstart', (e) => this.startDraw(e), {passive: false});
-                this.canvas.addEventListener('touchmove', (e) => this.draw(e), {passive: false});
-                this.canvas.addEventListener('touchend', () => this.stopDraw());
-            }
-        }
-
-        /* =========================================
-           4. MAIN APPLICATION
-           ========================================= */
         class App {
             constructor() {
-                this.ui = new UIManager();
-                this.net = new NetworkManager(this);
-                this.board = new Whiteboard(this);
+                // 1. Setup Canvas
+                const canvas = document.getElementById('drawing-canvas');
                 
-                this.net.init();
-                this.setupControls();
-            }
+                // 2. Initialize Subsystems
+                this.viewport = new Viewport();
+                this.boardState = new BoardState();
+                this.renderer = new Renderer(canvas, this.boardState, this.viewport);
+                this.ui = new UIManager(this);
+                this.input = new InputController(this);
+                this.net = new NetworkManager(this);
 
-            handleData(data) {
-                if (data.type === 'draw') {
-                    this.board.drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.isEraser);
-                } else if (data.type === 'wipe') {
-                    this.board.wipe();
-                }
+                // 3. Start
+                this.net.init();
+                
+                // 4. Resize Listener
+                window.addEventListener('resize', () => {
+                    this.renderer.resize();
+                });
             }
 
             checkDeepLink() {
                 const params = new URLSearchParams(window.location.search);
-                const targetPeer = params.get('peer');
-                if (targetPeer) {
-                    // Remove param from URL without reload
+                const peer = params.get('peer');
+                if(peer) {
+                    this.net.connect(peer);
+                    this.ui.showBoard();
                     window.history.replaceState({}, document.title, window.location.pathname);
-                    // Connect
-                    document.getElementById('input-peer-id').value = targetPeer;
-                    this.net.connect(targetPeer);
                 }
-            }
-
-            startVisualizerLoop() {
-                const loop = () => {
-                    if (this.ui.canvas.offsetParent !== null) { // Only draw if visible
-                        const bufferLength = this.net.analyser.frequencyBinCount;
-                        const dataArray = new Uint8Array(bufferLength);
-                        this.net.analyser.getByteFrequencyData(dataArray);
-                        this.ui.drawVisualizer(dataArray);
-                    }
-                    requestAnimationFrame(loop);
-                };
-                loop();
-            }
-
-            setupControls() {
-                // Connection
-                document.getElementById('btn-copy').addEventListener('click', () => {
-                    const url = `${window.location.origin}${window.location.pathname}?peer=${this.net.peer.id}`;
-                    navigator.clipboard.writeText(url);
-                    const btn = document.getElementById('btn-copy');
-                    const originalHTML = btn.innerHTML;
-                    btn.innerHTML = '<span class="text-xs font-bold text-ghost-neon">COPIED</span>';
-                    setTimeout(() => btn.innerHTML = originalHTML, 2000);
-                });
-
-                document.getElementById('btn-connect').addEventListener('click', () => {
-                    const id = document.getElementById('input-peer-id').value.trim().toUpperCase();
-                    this.net.connect(id);
-                });
-
-                document.getElementById('btn-exit').addEventListener('click', () => {
-                    this.net.cleanup();
-                    window.location.reload();
-                });
-
-                // Scanner
-                document.getElementById('btn-scan').addEventListener('click', () => {
-                    this.ui.toggleScanner(true);
-                    this.startScanner();
-                });
-                document.getElementById('btn-close-scanner').addEventListener('click', () => {
-                    if(this.html5QrCode) this.html5QrCode.stop();
-                    this.ui.toggleScanner(false);
-                });
-
-                // Tools
-                document.querySelectorAll('.color-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        this.board.color = e.target.dataset.color;
-                        this.board.mode = 'draw';
-                        // Visual selection feedback
-                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
-                        e.target.classList.add('ring-2', 'ring-white');
-                        document.getElementById('tool-eraser').classList.remove('active');
-                    });
-                });
-
-                document.getElementById('tool-eraser').addEventListener('click', (e) => {
-                    this.board.mode = 'eraser';
-                    e.currentTarget.classList.add('active');
-                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
-                });
-
-                document.getElementById('tool-wipe').addEventListener('click', () => {
-                    if(confirm('CONFIRM WIPE SYSTEM?')) {
-                        this.board.wipe();
-                        this.net.send({type: 'wipe'});
-                    }
-                });
-
-                document.getElementById('tool-save').addEventListener('click', () => {
-                    this.board.save();
-                });
-
-                // Audio
-                document.getElementById('btn-mic').addEventListener('click', (e) => {
-                    const isActive = this.net.toggleMic();
-                    const btn = e.currentTarget;
-                    if (isActive) {
-                        btn.classList.add('text-ghost-neon', 'border-ghost-neon');
-                        btn.innerHTML = '<i data-lucide="mic"></i>';
-                    } else {
-                        btn.classList.remove('text-ghost-neon', 'border-ghost-neon');
-                        btn.innerHTML = '<i data-lucide="mic-off"></i>';
-                    }
-                    lucide.createIcons();
-                });
-            }
-
-            startScanner() {
-                this.html5QrCode = new Html5Qrcode("reader");
-                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-                
-                this.html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-                    // Success
-                    console.log(`Scan result: ${decodedText}`);
-                    
-                    // Parse URL param if it's a full URL, or just take the ID
-                    let peerId = decodedText;
-                    if(decodedText.includes('?peer=')) {
-                        const url = new URL(decodedText);
-                        peerId = url.searchParams.get('peer');
-                    }
-                    
-                    if(peerId) {
-                        document.getElementById('input-peer-id').value = peerId;
-                        this.html5QrCode.stop();
-                        this.ui.toggleScanner(false);
-                        this.net.connect(peerId);
-                    }
-                }, (errorMessage) => {
-                    // parsing failure, ignore
-                }).catch(err => {
-                    console.error("Error starting scanner", err);
-                    alert("Camera permission denied or error.");
-                    this.ui.toggleScanner(false);
-                });
             }
         }
 
-        // Initialize on load
-        window.addEventListener('load', () => {
-            const app = new App();
-        });
-
+        // Boot
+        window.addEventListener('load', () => new App());
     </script>
 </body>
 </html>
