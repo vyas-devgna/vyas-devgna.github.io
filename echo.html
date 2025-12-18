@@ -1,304 +1,799 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Wifi, Activity, AlertCircle, Mic } from 'lucide-react';
-
-// --- AUDIO MODEM CONSTANTS ---
-// We use FSK (Frequency Shift Keying).
-// 0 = SPACE_FREQ, 1 = MARK_FREQ
-// Using frequencies near 18.5kHz - 19.5kHz
-// This is "Near Ultrasonic" - audible to young ears/sensitive mics, but mostly silent to adults.
-// True ultrasonic (>20kHz) often gets filtered by standard speakers/mics.
-const SPACE_FREQ = 18500; // Represents '0'
-const MARK_FREQ = 19500;  // Represents '1'
-const BAUD_RATE = 30;     // Bits per second (Slower is more reliable in air)
-const BIT_DURATION = 1 / BAUD_RATE; 
-
-const textToBinary = (text: string) => {
-    let output = "";
-    for (let i = 0; i < text.length; i++) {
-        let bin = text[i].charCodeAt(0).toString(2);
-        output += Array(8 - bin.length + 1).join("0") + bin;
-    }
-    return output;
-};
-
-const binaryToText = (binary: string) => {
-    let text = "";
-    for (let i = 0; i < binary.length; i += 8) {
-        let byte = binary.slice(i, i + 8);
-        text += String.fromCharCode(parseInt(byte, 2));
-    }
-    return text;
-};
-
-export default function App() {
-    const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'me' | 'other' | 'system', timestamp: Date}>>([
-        { id: 1, text: "Welcome to Ultrasonic Chat", sender: 'system', timestamp: new Date() },
-        { id: 2, text: "Tap 'Initialize Audio' to start.", sender: 'system', timestamp: new Date() }
-    ]);
-    const [inputText, setInputText] = useState("");
-    const [isAudioReady, setIsAudioReady] = useState(false);
-    const [isTransmitting, setIsTransmitting] = useState(false);
-    const [debugInfo, setDebugInfo] = useState("Waiting for init...");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GHOST_BOARD // P2P</title>
     
-    // Refs for Audio
-    const audioCtxRef = useRef<AudioContext | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
-    const micStreamRef = useRef<MediaStream | null>(null);
-    const requestRef = useRef<number | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    const bcRef = useRef<BroadcastChannel | null>(null);
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <!-- QR Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    // --- SETUP BROADCAST CHANNEL (Local Sync Backup) ---
-    // Since browser microphones can be tricky with ultrasonic self-hearing,
-    // we use a BroadcastChannel to ensure tabs on the same device ALWAYS work.
-    useEffect(() => {
-        bcRef.current = new BroadcastChannel('ultrasonic_chat_channel');
-        bcRef.current.onmessage = (event) => {
-            addMessage(event.data.text, 'other');
-        };
-        return () => bcRef.current?.close();
-    }, []);
-
-    // --- AUDIO INITIALIZATION ---
-    const initAudio = async () => {
-        try {
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            audioCtxRef.current = new AudioContext();
-            
-            // Create Analyser
-            analyserRef.current = audioCtxRef.current.createAnalyser();
-            analyserRef.current.fftSize = 2048; 
-            analyserRef.current.smoothingTimeConstant = 0.5;
-
-            // Request Mic Access
-            // Important: We need to turn off audio processing that might filter high frequencies
-            micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: {
-                echoCancellation: false,
-                noiseSuppression: false, 
-                autoGainControl: false   
-            }});
-
-            const source = audioCtxRef.current.createMediaStreamSource(micStreamRef.current);
-            source.connect(analyserRef.current);
-
-            setIsAudioReady(true);
-            setDebugInfo("Audio initialized. Listening...");
-            startListeningLoop();
-        } catch (err: any) {
-            console.error("Audio Init Error:", err);
-            setDebugInfo("Error: " + err.message);
-            alert("Microphone access is needed to receive ultrasonic messages. Please allow access and reload.");
-        }
-    };
-
-    // --- TRANSMITTER ---
-    const transmitMessage = async (text: string) => {
-        if (!audioCtxRef.current) return;
-        setIsTransmitting(true);
-        
-        // 1. Send via BroadcastChannel (Reliable Local Transport)
-        bcRef.current?.postMessage({ text, sender: 'other' });
-
-        // 2. Add to own UI
-        addMessage(text, 'me');
-
-        // 3. Audio Transmission (The "Sound" part)
-        const binary = "10101010" + textToBinary(text) + "00000000"; // Header + Data + Footer
-        const ctx = audioCtxRef.current;
-        
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        const now = ctx.currentTime;
-        
-        // Gentle ramp up/down to prevent "pop" sounds
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
-
-        for (let i = 0; i < binary.length; i++) {
-            const bit = binary[i];
-            const freq = bit === '1' ? MARK_FREQ : SPACE_FREQ;
-            const startTime = now + 0.05 + (i * BIT_DURATION);
-            osc.frequency.setValueAtTime(freq, startTime);
-        }
-
-        const endTime = now + 0.05 + (binary.length * BIT_DURATION);
-        gain.gain.setValueAtTime(0.5, endTime);
-        gain.gain.linearRampToValueAtTime(0, endTime + 0.05);
-        osc.start(now);
-        osc.stop(endTime + 0.1);
-
-        setTimeout(() => {
-            setIsTransmitting(false);
-        }, (endTime - now + 0.1) * 1000);
-    };
-
-    // --- RECEIVER (Visualizer Logic) ---
-    const startListeningLoop = () => {
-        if(!analyserRef.current || !audioCtxRef.current) return;
-        
-        const bufferLength = analyserRef.current.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const ctx = audioCtxRef.current;
-        
-        const sampleRate = ctx.sampleRate;
-        const markBin = Math.round(MARK_FREQ * 2048 / sampleRate);
-        const spaceBin = Math.round(SPACE_FREQ * 2048 / sampleRate);
-        
-        const loop = () => {
-            requestRef.current = requestAnimationFrame(loop);
-            analyserRef.current!.getByteFrequencyData(dataArray);
-
-            // Calculate energy in our target bands
-            // We average the bin and its neighbors to capture the signal even if slightly off-pitch
-            const getEnergy = (bin: number) => (dataArray[bin-1] + dataArray[bin] + dataArray[bin+1]) / 3;
-
-            const markEnergy = getEnergy(markBin);
-            const spaceEnergy = getEnergy(spaceBin);
-            const noiseFloor = 30; 
-
-            // Update debug info if we hear something strong
-            if(markEnergy > noiseFloor || spaceEnergy > noiseFloor) {
-                const signal = markEnergy > spaceEnergy ? '1 (MARK)' : '0 (SPACE)';
-                const strength = Math.max(markEnergy, spaceEnergy).toFixed(0);
-                setDebugInfo(`RX Signal: ${signal} | Vol: ${strength}`);
-            } else {
-                 setDebugInfo(`Listening (${(SPACE_FREQ/1000).toFixed(1)}kHz - ${(MARK_FREQ/1000).toFixed(1)}kHz)...`);
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ghost: {
+                            bg: '#050505',
+                            surface: '#111111',
+                            border: '#333333',
+                            text: '#e0e0e0',
+                            neon: '#2aff2a',
+                            danger: '#ff2a2a',
+                            warn: '#ffcc00'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Courier New"', 'Courier', 'monospace']
+                    },
+                    cursor: {
+                        crosshair: 'crosshair',
+                    }
+                }
             }
-        };
-        loop();
-    };
+        }
+    </script>
 
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!inputText.trim()) return;
-        transmitMessage(inputText);
-        setInputText("");
-    };
+    <style>
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden; /* Prevent pull-to-refresh */
+        }
+        
+        /* Strict No Radius Rule */
+        * {
+            border-radius: 0 !important;
+        }
 
-    const addMessage = (text: string, sender: 'me' | 'other' | 'system') => {
-        setMessages(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            text,
-            sender,
-            timestamp: new Date()
-        }]);
-    };
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
 
-    return (
-        <div className="flex flex-col h-[100dvh] w-full bg-slate-900 text-slate-100 font-sans overflow-hidden">
+        /* Ghost Button Styles */
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .btn-ghost:hover {
+            background: #1a1a1a;
+            border-color: #555;
+            color: #fff;
+        }
+        .btn-ghost:active {
+            background: #2aff2a;
+            color: #000;
+            border-color: #2aff2a;
+        }
+        .btn-ghost.danger:hover {
+            border-color: #ff2a2a;
+            color: #ff2a2a;
+        }
+        .btn-ghost.active {
+            background: #333;
+            border-color: #e0e0e0;
+        }
+
+        /* Canvas Grid Background */
+        #canvas-container {
+            background-image: 
+                radial-gradient(#222 1px, transparent 1px),
+                radial-gradient(#111 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            touch-action: none;
+        }
+
+        /* CRT Scanline Effect Overlay (Subtle) */
+        .scanlines::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 9999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col scanlines relative">
+
+    <!-- ========================================== -->
+    <!-- AUDIO / COMMS HEADER (Always Visible)      -->
+    <!-- ========================================== -->
+    <header class="h-12 bg-ghost-surface border-b border-ghost-border flex items-center justify-between px-4 z-50 shrink-0">
+        <div class="flex items-center gap-4">
+            <span class="text-ghost-neon font-bold tracking-widest text-lg">GHOST_BOARD</span>
+            <div id="status-badge" class="text-[10px] border border-ghost-border px-2 py-0.5 text-ghost-warn tracking-widest bg-black/50">
+                [ OFFLINE ]
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 h-full py-2">
+            <!-- Visualizer Canvas -->
+            <canvas id="audio-viz" width="100" height="24" class="bg-black border border-ghost-border hidden md:block"></canvas>
             
-            {/* Header */}
-            <header className="bg-slate-800 border-b border-slate-700 p-3 shadow-md flex items-center justify-between shrink-0 z-20">
-                <div className="flex items-center gap-2">
-                    <div className={`p-2 rounded-full ${isTransmitting ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700/50 text-slate-400'}`}>
-                         <Activity className={`w-5 h-5 ${isTransmitting ? 'animate-pulse' : ''}`} />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-lg leading-tight">SonicChat</h1>
-                        <p className="text-[10px] text-slate-400">Ultrasonic FSK Modem</p>
-                    </div>
-                </div>
-                
-                {!isAudioReady ? (
-                    <button 
-                        onClick={initAudio}
-                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg shadow-blue-900/20 animate-pulse transition-all"
-                    >
-                        Tap to Connect
-                    </button>
-                ) : (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/30 px-3 py-1.5 rounded-full border border-emerald-900/50">
-                        <Wifi className="w-3.5 h-3.5" />
-                        <span className="font-medium">Online</span>
-                    </div>
-                )}
-            </header>
+            <button id="btn-mic" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE MIC">
+                <i data-lucide="mic"></i>
+            </button>
+            <button id="btn-speaker" class="btn-ghost h-full px-3 text-[10px]" title="TOGGLE AUDIO">
+                <i data-lucide="volume-2"></i>
+            </button>
+            <button id="btn-exit" class="btn-ghost h-full px-3 text-[10px] text-ghost-danger hidden" title="DISCONNECT">
+                <i data-lucide="log-out"></i>
+            </button>
+        </div>
+    </header>
 
-            {/* Messages Area - Flex 1 to take remaining space, with scrolling */}
-            <main className="flex-1 overflow-y-auto p-4 space-y-4 relative w-full">
-                {messages.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center text-slate-600">
-                        <p>No messages yet</p>
-                    </div>
-                )}
-                
-                {messages.map((msg) => (
-                    <div 
-                        key={msg.id} 
-                        className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-                    >
-                        <div className={`
-                            max-w-[85%] sm:max-w-[70%] px-4 py-3 shadow-sm text-sm break-words
-                            ${msg.sender === 'me' 
-                                ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none' 
-                                : (msg.sender === 'system' 
-                                    ? 'bg-transparent text-slate-500 text-xs text-center w-full shadow-none my-2' 
-                                    : 'bg-slate-700 text-slate-100 rounded-2xl rounded-tl-none')}
-                        `}>
-                            {msg.text}
-                            {msg.sender !== 'system' && (
-                                <p className={`text-[10px] mt-1.5 text-right opacity-60 ${msg.sender === 'me' ? 'text-blue-100' : 'text-slate-300'}`}>
-                                    {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                <div ref={messagesEndRef} className="h-2" />
-            </main>
-
-            {/* Debug Info Bar */}
-            <div className="bg-black/20 backdrop-blur-sm p-1 text-[10px] text-slate-500 text-center select-none shrink-0 border-t border-slate-800/50">
-                {debugInfo}
+    <!-- ========================================== -->
+    <!-- VIEW: LOBBY                                -->
+    <!-- ========================================== -->
+    <main id="view-lobby" class="flex-1 flex flex-col items-center justify-center p-4 z-40 bg-ghost-bg">
+        <div class="w-full max-w-md bg-ghost-surface border border-ghost-border p-6 flex flex-col gap-6">
+            <div class="text-center space-y-2">
+                <h1 class="text-2xl text-white tracking-widest">IDENTITY_VERIFIED</h1>
+                <p class="text-xs text-gray-500 font-mono uppercase">Secure P2P Protocol Initialized</p>
             </div>
 
-            {/* Input Area */}
-            <footer className="bg-slate-800 p-3 shrink-0 pb-safe z-20">
-                <form 
-                    onSubmit={handleSend}
-                    className="flex items-center gap-2 w-full max-w-4xl mx-auto bg-slate-900 p-1.5 rounded-full border border-slate-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all"
-                >
-                    <input
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 bg-transparent text-white px-4 py-2.5 focus:outline-none text-base placeholder:text-slate-600"
-                        disabled={!isAudioReady}
-                        autoComplete="off"
-                    />
-                    <button 
-                        type="submit" 
-                        disabled={!inputText.trim() || !isAudioReady}
-                        className={`
-                            p-3 rounded-full flex items-center justify-center transition-all shrink-0
-                            ${inputText.trim() && isAudioReady 
-                                ? 'bg-blue-600 text-white shadow-lg hover:bg-blue-500 scale-100' 
-                                : 'bg-slate-700 text-slate-500 cursor-not-allowed scale-95'}
-                        `}
-                    >
-                        {isTransmitting ? <Activity className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-0.5" />}
+            <!-- My ID Section -->
+            <div class="flex flex-col items-center gap-4 py-4 border-y border-ghost-border border-dashed">
+                <canvas id="qr-code" class="border-4 border-white"></canvas>
+                <div class="flex gap-2 w-full">
+                    <div class="flex-1 bg-black border border-ghost-border p-3 text-center text-xl text-ghost-neon tracking-[0.2em] font-bold" id="my-peer-id">
+                        ----
+                    </div>
+                    <button id="btn-copy" class="btn-ghost px-4" title="COPY LINK">
+                        <i data-lucide="copy"></i>
                     </button>
-                </form>
-                {!isAudioReady && (
-                    <p className="text-center text-xs text-amber-500/80 mt-2 font-medium animate-pulse">
-                        Tap "Tap to Connect" at the top to enable chat
-                    </p>
-                )}
-            </footer>
+                </div>
+                <p class="text-[10px] text-gray-600 uppercase">Share this ID or QR to connect</p>
+            </div>
+
+            <!-- Connect Section -->
+            <div class="space-y-4">
+                <div class="flex gap-2">
+                    <input type="text" id="input-peer-id" placeholder="ENTER TARGET ID" 
+                        class="flex-1 bg-black border border-ghost-border p-3 text-ghost-text placeholder-gray-700 outline-none uppercase font-mono focus:border-ghost-neon">
+                    <button id="btn-connect" class="btn-ghost px-6 font-bold text-ghost-neon border-ghost-neon">
+                        CONNECT
+                    </button>
+                </div>
+                
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-ghost-border"></div>
+                    </div>
+                    <div class="relative flex justify-center text-xs uppercase">
+                        <span class="bg-ghost-surface px-2 text-gray-500">OR</span>
+                    </div>
+                </div>
+
+                <button id="btn-scan" class="btn-ghost w-full py-3 gap-2">
+                    <i data-lucide="scan-line"></i> SCAN QR CODE
+                </button>
+                
+                <div id="scanner-container" class="hidden w-full h-64 bg-black border border-ghost-border relative">
+                    <div id="reader" class="w-full h-full"></div>
+                    <button id="btn-close-scanner" class="absolute top-2 right-2 btn-ghost bg-black/80 px-2 py-1 text-xs text-red-500 z-10">X</button>
+                </div>
+            </div>
         </div>
-    );
-}
+    </main>
+
+    <!-- ========================================== -->
+    <!-- VIEW: WHITEBOARD                           -->
+    <!-- ========================================== -->
+    <main id="view-board" class="flex-1 relative hidden h-full overflow-hidden">
+        
+        <!-- Canvas Layer -->
+        <div id="canvas-container" class="absolute inset-0 z-0">
+            <canvas id="drawing-canvas"></canvas>
+        </div>
+
+        <!-- Tools Interface (Floating) -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 p-2 bg-ghost-surface/90 border border-ghost-border backdrop-blur-sm z-10">
+            
+            <!-- Colors -->
+            <div class="flex gap-1 pr-4 border-r border-ghost-border mr-2">
+                <button class="color-btn w-8 h-8 border border-white bg-white" data-color="#ffffff"></button>
+                <button class="color-btn w-8 h-8 border border-ghost-neon bg-ghost-neon" data-color="#2aff2a"></button>
+                <button class="color-btn w-8 h-8 border border-red-500 bg-red-500" data-color="#ff2a2a"></button>
+                <button class="color-btn w-8 h-8 border border-blue-500 bg-blue-500" data-color="#2a2aff"></button>
+                <button class="color-btn w-8 h-8 border border-yellow-400 bg-yellow-400" data-color="#ffcc00"></button>
+            </div>
+
+            <!-- Tools -->
+            <button id="tool-eraser" class="btn-ghost w-10 h-8" title="ERASER">
+                <i data-lucide="eraser"></i>
+            </button>
+            <button id="tool-wipe" class="btn-ghost w-10 h-8 text-ghost-danger hover:border-ghost-danger" title="WIPE BOARD">
+                <i data-lucide="trash-2"></i>
+            </button>
+            <button id="tool-save" class="btn-ghost w-10 h-8 text-ghost-neon hover:border-ghost-neon" title="SAVE IMAGE">
+                <i data-lucide="download"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        /* =========================================
+           1. UI CONTROLLER
+           ========================================= */
+        class UIManager {
+            constructor() {
+                this.views = {
+                    lobby: document.getElementById('view-lobby'),
+                    board: document.getElementById('view-board')
+                };
+                this.badges = {
+                    status: document.getElementById('status-badge'),
+                    idDisplay: document.getElementById('my-peer-id')
+                };
+                this.scannerContainer = document.getElementById('scanner-container');
+                this.canvas = document.getElementById('audio-viz');
+                this.canvasCtx = this.canvas.getContext('2d');
+            }
+
+            showBoard() {
+                this.views.lobby.classList.add('hidden');
+                this.views.board.classList.remove('hidden');
+                document.getElementById('btn-exit').classList.remove('hidden');
+                // Trigger resize
+                window.dispatchEvent(new Event('resize'));
+            }
+
+            showLobby() {
+                this.views.board.classList.add('hidden');
+                this.views.lobby.classList.remove('hidden');
+                document.getElementById('btn-exit').classList.add('hidden');
+                this.updateStatus('DISCONNECTED', 'gray');
+            }
+
+            updateStatus(text, colorType) {
+                const colors = {
+                    green: 'text-ghost-neon border-ghost-neon',
+                    red: 'text-ghost-danger border-ghost-danger',
+                    amber: 'text-ghost-warn border-ghost-warn',
+                    gray: 'text-gray-500 border-gray-500'
+                };
+                this.badges.status.className = `text-[10px] border px-2 py-0.5 tracking-widest bg-black/50 transition-colors ${colors[colorType] || colors.gray}`;
+                this.badges.status.innerText = `[ ${text} ]`;
+            }
+
+            setMyId(id) {
+                this.badges.idDisplay.innerText = id;
+                // Generate QR
+                new QRious({
+                    element: document.getElementById('qr-code'),
+                    value: `${window.location.origin}${window.location.pathname}?peer=${id}`,
+                    size: 150,
+                    background: '#000000',
+                    foreground: '#ffffff',
+                    level: 'L'
+                });
+            }
+
+            toggleScanner(show) {
+                if (show) this.scannerContainer.classList.remove('hidden');
+                else this.scannerContainer.classList.add('hidden');
+            }
+
+            drawVisualizer(dataArray) {
+                const width = this.canvas.width;
+                const height = this.canvas.height;
+                this.canvasCtx.clearRect(0, 0, width, height);
+                
+                const barWidth = (width / dataArray.length) * 2.5;
+                let barHeight;
+                let x = 0;
+
+                for(let i = 0; i < dataArray.length; i++) {
+                    barHeight = dataArray[i] / 255 * height;
+                    this.canvasCtx.fillStyle = `rgb(42, 255, 42)`; // Neon Green
+                    this.canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            }
+        }
+
+        /* =========================================
+           2. NETWORK MANAGER (WebRTC)
+           ========================================= */
+        class NetworkManager {
+            constructor(app) {
+                this.app = app;
+                this.peer = null;
+                this.conn = null;
+                this.call = null;
+                this.localStream = null;
+                this.remoteStream = null;
+                this.isMuted = false;
+                
+                // Audio Context
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                this.analyser = this.audioCtx.createAnalyser();
+                this.analyser.fftSize = 64; // Low res for retro look
+            }
+
+            init() {
+                // Generate short ID
+                const randomId = 'GHOST-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+                
+                this.peer = new Peer(randomId, {
+                    debug: 2
+                });
+
+                this.peer.on('open', (id) => {
+                    console.log('My peer ID is: ' + id);
+                    this.app.ui.setMyId(id);
+                    this.app.ui.updateStatus('ONLINE', 'green');
+                    this.app.checkDeepLink();
+                });
+
+                this.peer.on('connection', (conn) => {
+                    this.handleConnection(conn);
+                });
+
+                this.peer.on('call', (call) => {
+                    console.log('Incoming call...');
+                    this.answerCall(call);
+                });
+
+                this.peer.on('error', (err) => {
+                    console.error(err);
+                    this.app.ui.updateStatus('ERROR', 'red');
+                    alert('Connection Error: ' + err.type);
+                });
+            }
+
+            connect(remoteId) {
+                if (!remoteId) return;
+                this.app.ui.updateStatus('CONNECTING...', 'amber');
+                const conn = this.peer.connect(remoteId);
+                this.handleConnection(conn);
+                this.initiateCall(remoteId);
+            }
+
+            handleConnection(conn) {
+                this.conn = conn;
+
+                this.conn.on('open', () => {
+                    this.app.ui.updateStatus(`LINKED: ${this.conn.peer}`, 'green');
+                    this.app.ui.showBoard();
+                    // Send initial sync request if needed
+                });
+
+                this.conn.on('data', (data) => {
+                    this.app.handleData(data);
+                });
+
+                this.conn.on('close', () => {
+                    this.app.ui.updateStatus('PEER LEFT', 'red');
+                    setTimeout(() => this.app.ui.showLobby(), 2000);
+                    this.cleanup();
+                });
+            }
+
+            send(data) {
+                if (this.conn && this.conn.open) {
+                    this.conn.send(data);
+                }
+            }
+
+            // --- Audio Handling ---
+
+            async getLocalStream() {
+                if (this.localStream) return this.localStream;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    this.localStream = stream;
+                    this.connectStreamToVisualizer(stream);
+                    return stream;
+                } catch (err) {
+                    console.error('Mic access denied', err);
+                    return null;
+                }
+            }
+
+            connectStreamToVisualizer(stream) {
+                const source = this.audioCtx.createMediaStreamSource(stream);
+                source.connect(this.analyser);
+                this.app.startVisualizerLoop();
+            }
+
+            async initiateCall(remoteId) {
+                const stream = await this.getLocalStream();
+                if (!stream) return;
+                
+                this.call = this.peer.call(remoteId, stream);
+                this.handleCallStream(this.call);
+            }
+
+            async answerCall(call) {
+                const stream = await this.getLocalStream();
+                call.answer(stream || undefined); // Answer even if no mic, just to hear
+                this.handleCallStream(call);
+            }
+
+            handleCallStream(call) {
+                call.on('stream', (remoteStream) => {
+                    // Play remote audio
+                    const audio = new Audio();
+                    audio.srcObject = remoteStream;
+                    audio.play();
+                    
+                    // Add remote to visualizer (mixed)
+                    const source = this.audioCtx.createMediaStreamSource(remoteStream);
+                    source.connect(this.analyser); // Also visualize remote audio
+                    source.connect(this.audioCtx.destination); // Output to speakers
+                });
+            }
+
+            toggleMic() {
+                if(this.localStream) {
+                    this.isMuted = !this.isMuted;
+                    this.localStream.getAudioTracks()[0].enabled = !this.isMuted;
+                    return !this.isMuted; // Return active state
+                }
+                return false;
+            }
+
+            cleanup() {
+                if (this.conn) this.conn.close();
+                if (this.call) this.call.close();
+                this.conn = null;
+                this.call = null;
+            }
+        }
+
+        /* =========================================
+           3. WHITEBOARD LOGIC
+           ========================================= */
+        class Whiteboard {
+            constructor(app) {
+                this.app = app;
+                this.canvas = document.getElementById('drawing-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('canvas-container');
+                
+                this.isDrawing = false;
+                this.lastX = 0;
+                this.lastY = 0;
+                
+                // Config
+                this.color = '#ffffff';
+                this.lineWidth = 2;
+                this.mode = 'draw'; // draw | eraser
+
+                this.setupCanvas();
+                this.addListeners();
+            }
+
+            setupCanvas() {
+                // Resize Observer for full responsiveness
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = this.container.clientWidth;
+                this.canvas.height = this.container.clientHeight;
+                
+                // Re-apply styles after resize
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+            }
+
+            getPos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                let clientX, clientY;
+                
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                return {
+                    x: (clientX - rect.left) / this.canvas.width, // Normalize 0-1
+                    y: (clientY - rect.top) / this.canvas.height
+                };
+            }
+
+            startDraw(e) {
+                this.isDrawing = true;
+                const pos = this.getPos(e);
+                this.lastX = pos.x;
+                this.lastY = pos.y;
+            }
+
+            draw(e) {
+                if (!this.isDrawing) return;
+                e.preventDefault(); // Stop scrolling on touch
+
+                const pos = this.getPos(e);
+                
+                // Draw locally
+                this.drawLine(this.lastX, this.lastY, pos.x, pos.y, this.color, this.mode === 'eraser');
+
+                // Send to peer
+                this.app.net.send({
+                    type: 'draw',
+                    x0: this.lastX,
+                    y0: this.lastY,
+                    x1: pos.x,
+                    y1: pos.y,
+                    color: this.color,
+                    isEraser: this.mode === 'eraser'
+                });
+
+                this.lastX = pos.x;
+                this.lastY = pos.y;
+            }
+
+            stopDraw() {
+                this.isDrawing = false;
+            }
+
+            drawLine(x0, y0, x1, y1, color, isEraser) {
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(x0 * w, y0 * h);
+                this.ctx.lineTo(x1 * w, y1 * h);
+                
+                if (isEraser) {
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                    this.ctx.lineWidth = 20;
+                } else {
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.strokeStyle = color;
+                    this.ctx.lineWidth = 2;
+                }
+                
+                this.ctx.stroke();
+                this.ctx.closePath();
+                
+                // Reset composite
+                this.ctx.globalCompositeOperation = 'source-over';
+            }
+
+            wipe() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            save() {
+                // Create a temporary canvas to composite black background
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = this.canvas.width;
+                tempCanvas.height = this.canvas.height;
+                const tCtx = tempCanvas.getContext('2d');
+                
+                // Fill black
+                tCtx.fillStyle = '#050505';
+                tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                // Draw original
+                tCtx.drawImage(this.canvas, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = `GHOST_BOARD_${Date.now()}.png`;
+                link.href = tempCanvas.toDataURL();
+                link.click();
+            }
+
+            addListeners() {
+                // Mouse
+                this.canvas.addEventListener('mousedown', (e) => this.startDraw(e));
+                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.canvas.addEventListener('mouseup', () => this.stopDraw());
+                this.canvas.addEventListener('mouseout', () => this.stopDraw());
+
+                // Touch
+                this.canvas.addEventListener('touchstart', (e) => this.startDraw(e), {passive: false});
+                this.canvas.addEventListener('touchmove', (e) => this.draw(e), {passive: false});
+                this.canvas.addEventListener('touchend', () => this.stopDraw());
+            }
+        }
+
+        /* =========================================
+           4. MAIN APPLICATION
+           ========================================= */
+        class App {
+            constructor() {
+                this.ui = new UIManager();
+                this.net = new NetworkManager(this);
+                this.board = new Whiteboard(this);
+                
+                this.net.init();
+                this.setupControls();
+            }
+
+            handleData(data) {
+                if (data.type === 'draw') {
+                    this.board.drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.isEraser);
+                } else if (data.type === 'wipe') {
+                    this.board.wipe();
+                }
+            }
+
+            checkDeepLink() {
+                const params = new URLSearchParams(window.location.search);
+                const targetPeer = params.get('peer');
+                if (targetPeer) {
+                    // Remove param from URL without reload
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Connect
+                    document.getElementById('input-peer-id').value = targetPeer;
+                    this.net.connect(targetPeer);
+                }
+            }
+
+            startVisualizerLoop() {
+                const loop = () => {
+                    if (this.ui.canvas.offsetParent !== null) { // Only draw if visible
+                        const bufferLength = this.net.analyser.frequencyBinCount;
+                        const dataArray = new Uint8Array(bufferLength);
+                        this.net.analyser.getByteFrequencyData(dataArray);
+                        this.ui.drawVisualizer(dataArray);
+                    }
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            }
+
+            setupControls() {
+                // Connection
+                document.getElementById('btn-copy').addEventListener('click', () => {
+                    const url = `${window.location.origin}${window.location.pathname}?peer=${this.net.peer.id}`;
+                    navigator.clipboard.writeText(url);
+                    const btn = document.getElementById('btn-copy');
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<span class="text-xs font-bold text-ghost-neon">COPIED</span>';
+                    setTimeout(() => btn.innerHTML = originalHTML, 2000);
+                });
+
+                document.getElementById('btn-connect').addEventListener('click', () => {
+                    const id = document.getElementById('input-peer-id').value.trim().toUpperCase();
+                    this.net.connect(id);
+                });
+
+                document.getElementById('btn-exit').addEventListener('click', () => {
+                    this.net.cleanup();
+                    window.location.reload();
+                });
+
+                // Scanner
+                document.getElementById('btn-scan').addEventListener('click', () => {
+                    this.ui.toggleScanner(true);
+                    this.startScanner();
+                });
+                document.getElementById('btn-close-scanner').addEventListener('click', () => {
+                    if(this.html5QrCode) this.html5QrCode.stop();
+                    this.ui.toggleScanner(false);
+                });
+
+                // Tools
+                document.querySelectorAll('.color-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.board.color = e.target.dataset.color;
+                        this.board.mode = 'draw';
+                        // Visual selection feedback
+                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                        e.target.classList.add('ring-2', 'ring-white');
+                        document.getElementById('tool-eraser').classList.remove('active');
+                    });
+                });
+
+                document.getElementById('tool-eraser').addEventListener('click', (e) => {
+                    this.board.mode = 'eraser';
+                    e.currentTarget.classList.add('active');
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                });
+
+                document.getElementById('tool-wipe').addEventListener('click', () => {
+                    if(confirm('CONFIRM WIPE SYSTEM?')) {
+                        this.board.wipe();
+                        this.net.send({type: 'wipe'});
+                    }
+                });
+
+                document.getElementById('tool-save').addEventListener('click', () => {
+                    this.board.save();
+                });
+
+                // Audio
+                document.getElementById('btn-mic').addEventListener('click', (e) => {
+                    const isActive = this.net.toggleMic();
+                    const btn = e.currentTarget;
+                    if (isActive) {
+                        btn.classList.add('text-ghost-neon', 'border-ghost-neon');
+                        btn.innerHTML = '<i data-lucide="mic"></i>';
+                    } else {
+                        btn.classList.remove('text-ghost-neon', 'border-ghost-neon');
+                        btn.innerHTML = '<i data-lucide="mic-off"></i>';
+                    }
+                    lucide.createIcons();
+                });
+            }
+
+            startScanner() {
+                this.html5QrCode = new Html5Qrcode("reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                
+                this.html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                    // Success
+                    console.log(`Scan result: ${decodedText}`);
+                    
+                    // Parse URL param if it's a full URL, or just take the ID
+                    let peerId = decodedText;
+                    if(decodedText.includes('?peer=')) {
+                        const url = new URL(decodedText);
+                        peerId = url.searchParams.get('peer');
+                    }
+                    
+                    if(peerId) {
+                        document.getElementById('input-peer-id').value = peerId;
+                        this.html5QrCode.stop();
+                        this.ui.toggleScanner(false);
+                        this.net.connect(peerId);
+                    }
+                }, (errorMessage) => {
+                    // parsing failure, ignore
+                }).catch(err => {
+                    console.error("Error starting scanner", err);
+                    alert("Camera permission denied or error.");
+                    this.ui.toggleScanner(false);
+                });
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            const app = new App();
+        });
+
+    </script>
+</body>
+</html>
