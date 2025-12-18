@@ -1,739 +1,304 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ECHO / GHOSTLINK</title>
-    <style>
-        :root {
-            --bg: #0d1117;
-            --term-bg: #161b22;
-            --fg: #c9d1d9;
-            --accent: #00ff41; /* Cyberpunk Green */
-            --accent-dim: rgba(0, 255, 65, 0.2);
-            --danger: #ff3333;
-            --warn: #ffcc00;
-            --font: 'Courier New', Courier, monospace;
-        }
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Wifi, Activity, AlertCircle, Mic } from 'lucide-react';
 
-        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-        
-        body {
-            background-color: var(--bg);
-            color: var(--fg);
-            font-family: var(--font);
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+// --- AUDIO MODEM CONSTANTS ---
+// We use FSK (Frequency Shift Keying).
+// 0 = SPACE_FREQ, 1 = MARK_FREQ
+// Using frequencies near 18.5kHz - 19.5kHz
+// This is "Near Ultrasonic" - audible to young ears/sensitive mics, but mostly silent to adults.
+// True ultrasonic (>20kHz) often gets filtered by standard speakers/mics.
+const SPACE_FREQ = 18500; // Represents '0'
+const MARK_FREQ = 19500;  // Represents '1'
+const BAUD_RATE = 30;     // Bits per second (Slower is more reliable in air)
+const BIT_DURATION = 1 / BAUD_RATE; 
 
-        /* --- HEADER & STATUS --- */
-        header {
-            background: var(--term-bg);
-            border-bottom: 1px solid #333;
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .logo { font-weight: bold; letter-spacing: 2px; color: var(--accent); }
-        .status-led {
-            width: 10px; height: 10px; border-radius: 50%;
-            background: #333; display: inline-block; margin-right: 5px;
-            box-shadow: 0 0 5px #333;
-        }
-        .status-led.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-        .status-led.busy { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-
-        /* --- VISUALIZER --- */
-        #scope-container {
-            position: relative;
-            height: 120px;
-            background: #000;
-            border-bottom: 1px solid #333;
-        }
-        canvas { width: 100%; height: 100%; display: block; }
-        
-        .freq-readout {
-            position: absolute; top: 5px; right: 5px;
-            font-size: 10px; color: var(--accent);
-            background: rgba(0,0,0,0.7); padding: 2px 4px;
-        }
-
-        /* --- TERMINAL / LOG --- */
-        #log {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            font-size: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            scroll-behavior: smooth;
-        }
-        
-        .msg { padding: 8px; border-left: 3px solid #333; background: rgba(255,255,255,0.02); animation: fadein 0.2s; }
-        .msg.tx { border-color: var(--accent); align-self: flex-end; text-align: right; }
-        .msg.rx { border-color: var(--warn); align-self: flex-start; }
-        .msg.sys { border-color: transparent; color: #666; font-size: 12px; text-align: center; align-self: center; }
-        
-        .meta { font-size: 10px; color: #555; margin-top: 4px; display: block; }
-
-        @keyframes fadein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- CONTROLS --- */
-        #controls {
-            background: var(--term-bg);
-            border-top: 1px solid #333;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .input-row { display: flex; gap: 10px; }
-        
-        input[type="text"] {
-            flex: 1;
-            background: #000;
-            border: 1px solid #333;
-            color: var(--accent);
-            font-family: var(--font);
-            padding: 12px;
-            font-size: 16px;
-            outline: none;
-        }
-        input[type="text"]:focus { border-color: var(--accent); }
-        input[type="text"]:disabled { opacity: 0.5; }
-
-        button {
-            background: #333;
-            color: var(--fg);
-            border: 1px solid #444;
-            padding: 0 20px;
-            font-family: var(--font);
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        button:active { background: #444; }
-
-        /* PTT BUTTON */
-        #btn-tx {
-            background: var(--accent-dim);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            height: 50px;
-            font-size: 18px;
-            letter-spacing: 2px;
-            transition: all 0.1s;
-        }
-        #btn-tx:active:not(:disabled) {
-            background: var(--accent);
-            color: #000;
-            box-shadow: 0 0 15px var(--accent);
-        }
-        #btn-tx:disabled {
-            border-color: #444; color: #555; background: transparent; cursor: not-allowed;
-        }
-        #btn-tx.transmitting {
-            background: var(--accent);
-            color: #000;
-            animation: pulse 0.5s infinite alternate;
-        }
-
-        /* SETTINGS DRAWER */
-        #settings {
-            font-size: 12px;
-            color: #666;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        select { background: #000; color: #888; border: 1px solid #333; padding: 4px; font-family: var(--font); }
-
-        @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
-        
-        .debug-overlay {
-            position: fixed; top: 50px; left: 10px; 
-            font-size: 10px; color: lime; pointer-events: none;
-            background: rgba(0,0,0,0.8); padding: 4px;
-            display: none;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="logo">GHOSTLINK <span style="font-size:10px; color:#666">v1.0</span></div>
-        <div>
-            <span class="status-led" id="led-status"></span>
-            <span id="txt-status" style="font-size:12px; color:#666">OFFLINE</span>
-        </div>
-    </header>
-
-    <div id="scope-container">
-        <canvas id="scope"></canvas>
-        <div class="freq-readout" id="freq-readout">INIT...</div>
-        <div class="debug-overlay" id="debug-stats"></div>
-    </div>
-
-    <div id="log">
-        <div class="msg sys">SYSTEM READY. INITIALIZING AUDIO CORE...</div>
-        <div class="msg sys">WARNING: DISABLE "SILENT MODE" ON IPHONE.</div>
-        <div class="msg sys"> KEEP VOLUME MAX.</div>
-    </div>
-
-    <div id="controls">
-        <div id="settings">
-            <span>BAND:
-                <select id="sel-band">
-                    <option value="low">LOW (800/1200Hz) - Robust</option>
-                    <option value="mid" selected>MID (2000/2500Hz) - Default</option>
-                    <option value="high">HIGH (18.5/19.5kHz) - Stealth</option>
-                </select>
-            </span>
-            <span id="queue-len">Q: 0</span>
-        </div>
-        <div class="input-row">
-            <input type="text" id="msg-input" placeholder="ENTER MESSAGE..." maxlength="32" autocomplete="off">
-        </div>
-        <button id="btn-tx" onclick="app.queueMessage()">TRANSMIT</button>
-    </div>
-
-<script>
-/**
- * ECHO CORE - ACOUSTIC MODEM LOGIC
- * Architecture:
- * 1. AudioContext (Main Thread) -> Manages Graph
- * 2. AudioWorklet (DSP Thread) -> BFSK Modulator / Goertzel Demodulator
- * 3. App (Main Thread) -> Packet Framing, CRC, UI
- */
-
-// --- CONFIGURATION ---
-const CONFIG = {
-    sampleRate: 44100, // Requested
-    baudRate: 25,      // 40ms symbols (Very robust)
-    bands: {
-        low:  { mark: 1200, space: 800 },
-        mid:  { mark: 2500, space: 2000 },
-        high: { mark: 19500,space: 18500 }
-    },
-    preambleByte: 0xAA, // 10101010
-    syncByte: 0x3C,     // 00111100 (Distinct sync word)
-    packetHeader: 0x00, // Reserved
+const textToBinary = (text: string) => {
+    let output = "";
+    for (let i = 0; i < text.length; i++) {
+        let bin = text[i].charCodeAt(0).toString(2);
+        output += Array(8 - bin.length + 1).join("0") + bin;
+    }
+    return output;
 };
 
-// --- DSP WORKLET CODE (INLINED) ---
-const WORKLET_CODE = `
-class ModemProcessor extends AudioWorkletProcessor {
-    constructor() {
-        super();
-        this.phase = 0;
-        this.isTx = false;
-        this.txBuffer = []; // Queue of frequencies to play
-        this.samplesPerSymbol = 0;
-        this.sampleCount = 0;
-        
-        // RX State
-        this.markFreq = 2500;
-        this.spaceFreq = 2000;
-        
-        // Goertzel State
-        this.q1_m = 0; this.q2_m = 0; // Mark
-        this.q1_s = 0; this.q2_s = 0; // Space
-        
-        // Energy Integration
-        this.energyMark = 0;
-        this.energySpace = 0;
-        this.integrationCount = 0;
-        this.integrationLimit = 0; // Will be set by message
+const binaryToText = (binary: string) => {
+    let text = "";
+    for (let i = 0; i < binary.length; i += 8) {
+        let byte = binary.slice(i, i + 8);
+        text += String.fromCharCode(parseInt(byte, 2));
+    }
+    return text;
+};
 
-        this.port.onmessage = (e) => {
-            const msg = e.data;
-            if (msg.type === 'CONFIG') {
-                this.samplesPerSymbol = Math.floor(sampleRate / msg.baud);
-                this.markFreq = msg.mark;
-                this.spaceFreq = msg.space;
-                this.integrationLimit = Math.floor(this.samplesPerSymbol / 2); // Integrate over half symbol
-                
-                // Pre-calc Goertzel coefficients
-                const k_m = Math.round((0.5 + (this.samplesPerSymbol * this.markFreq) / sampleRate));
-                this.coeff_m = 2 * Math.cos((2 * Math.PI * k_m) / this.samplesPerSymbol);
-                
-                const k_s = Math.round((0.5 + (this.samplesPerSymbol * this.spaceFreq) / sampleRate));
-                this.coeff_s = 2 * Math.cos((2 * Math.PI * k_s) / this.samplesPerSymbol);
-            }
-            else if (msg.type === 'TX_DATA') {
-                // Receive frequency sequence
-                this.txBuffer.push(...msg.freqs);
-                this.isTx = true;
-            }
+export default function App() {
+    const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'me' | 'other' | 'system', timestamp: Date}>>([
+        { id: 1, text: "Welcome to Ultrasonic Chat", sender: 'system', timestamp: new Date() },
+        { id: 2, text: "Tap 'Initialize Audio' to start.", sender: 'system', timestamp: new Date() }
+    ]);
+    const [inputText, setInputText] = useState("");
+    const [isAudioReady, setIsAudioReady] = useState(false);
+    const [isTransmitting, setIsTransmitting] = useState(false);
+    const [debugInfo, setDebugInfo] = useState("Waiting for init...");
+    
+    // Refs for Audio
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const micStreamRef = useRef<MediaStream | null>(null);
+    const requestRef = useRef<number | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const bcRef = useRef<BroadcastChannel | null>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // --- SETUP BROADCAST CHANNEL (Local Sync Backup) ---
+    // Since browser microphones can be tricky with ultrasonic self-hearing,
+    // we use a BroadcastChannel to ensure tabs on the same device ALWAYS work.
+    useEffect(() => {
+        bcRef.current = new BroadcastChannel('ultrasonic_chat_channel');
+        bcRef.current.onmessage = (event) => {
+            addMessage(event.data.text, 'other');
         };
-    }
+        return () => bcRef.current?.close();
+    }, []);
 
-    process(inputs, outputs, parameters) {
-        const input = inputs[0];
-        const output = outputs[0];
-        const channelIn = input && input.length > 0 ? input[0] : null;
-        const channelOut = output[0];
-
-        // --- TX BLOCK ---
-        if (this.isTx && this.txBuffer.length > 0) {
-            const freq = this.txBuffer[0];
-            const phaseInc = (2 * Math.PI * freq) / sampleRate;
-
-            for (let i = 0; i < channelOut.length; i++) {
-                channelOut[i] = Math.sin(this.phase);
-                this.phase += phaseInc;
-                if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
-
-                this.sampleCount++;
-                if (this.sampleCount >= this.samplesPerSymbol) {
-                    this.sampleCount = 0;
-                    this.txBuffer.shift();
-                    if (this.txBuffer.length === 0) {
-                        this.isTx = false;
-                        this.port.postMessage({ type: 'TX_COMPLETE' });
-                        // Fill remainder of buffer with 0 to avoid clicks? 
-                        // Actually better to ramp down, but for BFSK silence is 0
-                    } else {
-                        // Update freq for next sample loop (approx)
-                        // In a rigorous implementation we'd update phaseInc per sample or per symbol boundary
-                        // But here we switch inside the block, so we need to break
-                        break; 
-                    }
-                }
-            }
-        } else {
-            // Silence
-            for (let i = 0; i < channelOut.length; i++) channelOut[i] = 0;
-        }
-
-        // --- RX BLOCK (GOERTZEL) ---
-        if (channelIn) {
-            // We process every sample for demodulation
-            // Optimization: Downsample or Block processing could happen here
-            
-            for (let i = 0; i < channelIn.length; i++) {
-                const sample = channelIn[i];
-
-                // Goertzel Iteration
-                // Mark
-                let q0_m = this.coeff_m * this.q1_m - this.q2_m + sample;
-                this.q2_m = this.q1_m;
-                this.q1_m = q0_m;
-
-                // Space
-                let q0_s = this.coeff_s * this.q1_s - this.q2_s + sample;
-                this.q2_s = this.q1_s;
-                this.q1_s = q0_s;
-
-                this.integrationCount++;
-
-                if (this.integrationCount >= this.samplesPerSymbol) {
-                    // Calculate Magnitude Squared
-                    const mag_m = (this.q1_m * this.q1_m) + (this.q2_m * this.q2_m) - (this.coeff_m * this.q1_m * this.q2_m);
-                    const mag_s = (this.q1_s * this.q1_s) + (this.q2_s * this.q2_s) - (this.coeff_s * this.q1_s * this.q2_s);
-                    
-                    // Reset
-                    this.q1_m = 0; this.q2_m = 0;
-                    this.q1_s = 0; this.q2_s = 0;
-                    this.integrationCount = 0;
-
-                    // Send power metrics to Main Thread
-                    this.port.postMessage({ 
-                        type: 'RX_METRIC', 
-                        mark: mag_m, 
-                        space: mag_s 
-                    });
-                }
-            }
-        }
-
-        return true;
-    }
-}
-
-registerProcessor('modem-processor', ModemProcessor);
-`;
-
-// --- MAIN APP ---
-class EchoModem {
-    constructor() {
-        this.ctx = null;
-        this.worklet = null;
-        this.analyser = null;
-        this.gain = null;
-        this.isReady = false;
-        
-        // Protocol State
-        this.rxBuffer = []; // Bits
-        this.rxState = 'IDLE'; // IDLE, PREAMBLE, SYNC, DATA
-        this.rxByteAssembly = 0;
-        this.rxBitCount = 0;
-        this.rxPacketLen = 0;
-        this.rxDataBytes = [];
-        
-        // PHY State
-        this.threshold = 0.5; // Adaptive threshold
-        this.noiseFloor = 0.001;
-        this.lastDecision = 0;
-        this.consecutiveBits = 0;
-
-        // UI Refs
-        this.canvas = document.getElementById('scope');
-        this.canvasCtx = this.canvas.getContext('2d');
-        this.dom = {
-            log: document.getElementById('log'),
-            led: document.getElementById('led-status'),
-            txt: document.getElementById('txt-status'),
-            input: document.getElementById('msg-input'),
-            btn: document.getElementById('btn-tx'),
-            band: document.getElementById('sel-band')
-        };
-
-        this.setupEvents();
-    }
-
-    setupEvents() {
-        this.dom.btn.addEventListener('click', () => {
-            if (!this.isReady) this.initAudio().then(() => this.queueMessage());
-            else this.queueMessage();
-        });
-        
-        this.dom.input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.dom.btn.click();
-        });
-
-        this.dom.band.addEventListener('change', () => {
-            if(this.isReady) this.configureModem();
-        });
-
-        window.addEventListener('resize', () => this.resizeCanvas());
-        this.resizeCanvas();
-    }
-
-    resizeCanvas() {
-        this.canvas.width = this.canvas.parentElement.clientWidth;
-        this.canvas.height = this.canvas.parentElement.clientHeight;
-    }
-
-    async initAudio() {
+    // --- AUDIO INITIALIZATION ---
+    const initAudio = async () => {
         try {
-            this.log('SYS', 'INITIALIZING AC...', true);
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: CONFIG.sampleRate });
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            audioCtxRef.current = new AudioContext();
             
-            // Resume if suspended (browser policy)
-            if (this.ctx.state === 'suspended') await this.ctx.resume();
+            // Create Analyser
+            analyserRef.current = audioCtxRef.current.createAnalyser();
+            analyserRef.current.fftSize = 2048; 
+            analyserRef.current.smoothingTimeConstant = 0.5;
 
-            // Load Worklet
-            const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' });
-            await this.ctx.audioWorklet.addModule(URL.createObjectURL(blob));
+            // Request Mic Access
+            // Important: We need to turn off audio processing that might filter high frequencies
+            micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: {
+                echoCancellation: false,
+                noiseSuppression: false, 
+                autoGainControl: false   
+            }});
 
-            this.worklet = new AudioWorkletNode(this.ctx, 'modem-processor');
-            
-            // RX Pipeline
-            // Important: Disable echo cancellation for raw audio
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                    channelCount: 1
-                }
-            });
-            
-            const source = this.ctx.createMediaStreamSource(stream);
-            this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 2048;
-            this.analyser.smoothingTimeConstant = 0.2;
+            const source = audioCtxRef.current.createMediaStreamSource(micStreamRef.current);
+            source.connect(analyserRef.current);
 
-            source.connect(this.analyser);
-            this.analyser.connect(this.worklet);
-            
-            // TX Pipeline
-            this.gain = this.ctx.createGain();
-            this.gain.gain.value = 1.0;
-            this.worklet.connect(this.gain);
-            this.gain.connect(this.ctx.destination);
-
-            // Message Handling
-            this.worklet.port.onmessage = (e) => this.handleWorkletMessage(e.data);
-
-            this.configureModem();
-            this.isReady = true;
-            this.dom.led.classList.add('on');
-            this.dom.txt.innerText = 'ONLINE / LISTENING';
-            this.log('SYS', 'AUDIO CORE ACTIVE. 25 BAUD.');
-            
-            this.renderLoop();
-
-        } catch (e) {
-            this.log('SYS', 'INIT FAILED: ' + e.message);
-            console.error(e);
+            setIsAudioReady(true);
+            setDebugInfo("Audio initialized. Listening...");
+            startListeningLoop();
+        } catch (err: any) {
+            console.error("Audio Init Error:", err);
+            setDebugInfo("Error: " + err.message);
+            alert("Microphone access is needed to receive ultrasonic messages. Please allow access and reload.");
         }
-    }
+    };
 
-    configureModem() {
-        const bandKey = this.dom.band.value;
-        const band = CONFIG.bands[bandKey];
-        document.getElementById('freq-readout').innerText = `RX: ${band.space}/${band.mark} Hz`;
+    // --- TRANSMITTER ---
+    const transmitMessage = async (text: string) => {
+        if (!audioCtxRef.current) return;
+        setIsTransmitting(true);
         
-        this.worklet.port.postMessage({
-            type: 'CONFIG',
-            baud: CONFIG.baudRate,
-            mark: band.mark,
-            space: band.space
-        });
-    }
+        // 1. Send via BroadcastChannel (Reliable Local Transport)
+        bcRef.current?.postMessage({ text, sender: 'other' });
 
-    // --- PROTOCOL LOGIC ---
+        // 2. Add to own UI
+        addMessage(text, 'me');
 
-    handleWorkletMessage(msg) {
-        if (msg.type === 'RX_METRIC') {
-            this.processRxBit(msg.mark, msg.space);
-        } else if (msg.type === 'TX_COMPLETE') {
-            this.endTx();
-        }
-    }
+        // 3. Audio Transmission (The "Sound" part)
+        const binary = "10101010" + textToBinary(text) + "00000000"; // Header + Data + Footer
+        const ctx = audioCtxRef.current;
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        const now = ctx.currentTime;
+        
+        // Gentle ramp up/down to prevent "pop" sounds
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
 
-    processRxBit(pwrMark, pwrSpace) {
-        // 1. Adaptive Noise Floor
-        const totalPwr = pwrMark + pwrSpace;
-        this.noiseFloor = (this.noiseFloor * 0.99) + (totalPwr * 0.01);
-
-        // 2. Decision
-        // Require signal to be significantly above noise floor
-        if (totalPwr < this.noiseFloor * 3) {
-            this.resetRx('silence');
-            return;
+        for (let i = 0; i < binary.length; i++) {
+            const bit = binary[i];
+            const freq = bit === '1' ? MARK_FREQ : SPACE_FREQ;
+            const startTime = now + 0.05 + (i * BIT_DURATION);
+            osc.frequency.setValueAtTime(freq, startTime);
         }
 
-        // Relative power decision (Robust against volume changes)
-        const bit = pwrMark > pwrSpace ? 1 : 0;
+        const endTime = now + 0.05 + (binary.length * BIT_DURATION);
+        gain.gain.setValueAtTime(0.5, endTime);
+        gain.gain.linearRampToValueAtTime(0, endTime + 0.05);
+        osc.start(now);
+        osc.stop(endTime + 0.1);
+
+        setTimeout(() => {
+            setIsTransmitting(false);
+        }, (endTime - now + 0.1) * 1000);
+    };
+
+    // --- RECEIVER (Visualizer Logic) ---
+    const startListeningLoop = () => {
+        if(!analyserRef.current || !audioCtxRef.current) return;
         
-        // Debug
-        // console.log(bit, pwrMark.toFixed(0), pwrSpace.toFixed(0));
-
-        // 3. State Machine
-        this.feedStateMachine(bit);
-    }
-
-    feedStateMachine(bit) {
-        // Shift bit into buffer
-        this.rxBuffer.push(bit);
-        if (this.rxBuffer.length > 8) this.rxBuffer.shift();
-        
-        const byte = parseInt(this.rxBuffer.join(''), 2);
-
-        switch (this.rxState) {
-            case 'IDLE':
-                // Look for SYNC word (0x3C)
-                if (byte === CONFIG.syncByte) {
-                    this.rxState = 'HEADER';
-                    this.log('SYS', 'SYNC DETECTED...', true);
-                    this.rxBuffer = []; // Clear for next bits
-                    this.rxDataBytes = [];
-                    this.rxBitCount = 0;
-                    this.rxByteAssembly = 0;
-                }
-                break;
-
-            case 'HEADER':
-                // Next 8 bits is Length
-                this.rxByteAssembly = (this.rxByteAssembly << 1) | bit;
-                this.rxBitCount++;
-                if (this.rxBitCount === 8) {
-                    this.rxPacketLen = this.rxByteAssembly;
-                    this.rxState = 'DATA';
-                    this.rxBitCount = 0;
-                    this.rxByteAssembly = 0;
-                    // Sanity check length
-                    if (this.rxPacketLen > 64 || this.rxPacketLen === 0) {
-                        this.log('SYS', `BAD LEN (${this.rxPacketLen})`);
-                        this.resetRx();
-                    }
-                }
-                break;
-
-            case 'DATA':
-                this.rxByteAssembly = (this.rxByteAssembly << 1) | bit;
-                this.rxBitCount++;
-                if (this.rxBitCount === 8) {
-                    this.rxDataBytes.push(this.rxByteAssembly);
-                    this.rxBitCount = 0;
-                    this.rxByteAssembly = 0;
-
-                    if (this.rxDataBytes.length === this.rxPacketLen + 1) { // Payload + CRC
-                        this.finalizePacket();
-                    }
-                }
-                break;
-        }
-    }
-
-    finalizePacket() {
-        const crcReceived = this.rxDataBytes.pop(); // Remove last byte
-        const payload = this.rxDataBytes;
-        
-        // Calc CRC
-        const crcCalc = this.crc8(payload);
-        
-        if (crcCalc === crcReceived) {
-            const text = new TextDecoder().decode(new Uint8Array(payload));
-            this.log('RX', text);
-        } else {
-            this.log('SYS', 'CRC ERROR');
-        }
-        
-        this.resetRx();
-    }
-
-    resetRx(reason) {
-        this.rxState = 'IDLE';
-        this.rxBuffer = [];
-        this.rxBitCount = 0;
-        this.rxByteAssembly = 0;
-    }
-
-    // --- TX LOGIC ---
-
-    queueMessage() {
-        const text = this.dom.input.value.trim().toUpperCase();
-        if (!text) return;
-        
-        this.dom.input.disabled = true;
-        this.dom.btn.disabled = true;
-        this.dom.btn.innerText = "TX...";
-        this.dom.btn.classList.add('transmitting');
-        this.dom.led.className = 'status-led busy';
-        
-        // 1. Packet Construction
-        // Preamble (16 bits of 10101010)
-        // Sync (0x3C)
-        // Len
-        // Payload
-        // CRC
-        
-        const payload = new TextEncoder().encode(text);
-        const len = payload.length;
-        const crc = this.crc8(Array.from(payload));
-        
-        const packetBytes = [
-            CONFIG.preambleByte, CONFIG.preambleByte, // Preamble (Wake up)
-            CONFIG.syncByte, // Sync
-            len,
-            ...payload,
-            crc
-        ];
-
-        // 2. Bit Conversion
-        const freqs = [];
-        const bandKey = this.dom.band.value;
-        const band = CONFIG.bands[bandKey];
-
-        packetBytes.forEach(byte => {
-            for (let i = 7; i >= 0; i--) {
-                const bit = (byte >> i) & 1;
-                freqs.push(bit ? band.mark : band.space);
-            }
-        });
-
-        // Add tail silence/carrier
-        freqs.push(band.space, band.space);
-
-        // 3. Send to Worklet
-        this.worklet.port.postMessage({
-            type: 'TX_DATA',
-            freqs: freqs
-        });
-
-        this.dom.input.value = '';
-    }
-
-    endTx() {
-        this.dom.input.disabled = false;
-        this.dom.btn.disabled = false;
-        this.dom.btn.innerText = "TRANSMIT";
-        this.dom.btn.classList.remove('transmitting');
-        this.dom.led.className = 'status-led on';
-        this.log('TX', this.lastTxText || "MESSAGE SENT"); // Simplify log
-    }
-
-    // --- UTILS ---
-
-    crc8(bytes) {
-        let crc = 0;
-        for (let j = 0; j < bytes.length; j++) {
-            crc ^= bytes[j];
-            for (let i = 0; i < 8; i++) {
-                if ((crc & 0x80) !== 0) crc = ((crc << 1) ^ 0x07);
-                else crc <<= 1;
-            }
-        }
-        return crc & 0xFF;
-    }
-
-    log(type, text, skipAnim) {
-        if(type === 'TX') this.lastTxText = text; // Cache for endTx
-
-        const div = document.createElement('div');
-        div.className = `msg ${type.toLowerCase()}`;
-        
-        const time = new Date().toLocaleTimeString([], { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
-        div.innerHTML = `
-            <div>${text}</div>
-            <span class="meta">${type} • ${time}</span>
-        `;
-        
-        this.dom.log.appendChild(div);
-        this.dom.log.scrollTop = this.dom.log.scrollHeight;
-    }
-
-    // --- VISUALIZATION ---
-    renderLoop() {
-        requestAnimationFrame(() => this.renderLoop());
-        if (!this.analyser) return;
-
-        const bufferLength = this.analyser.frequencyBinCount;
+        const bufferLength = analyserRef.current.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        this.analyser.getByteFrequencyData(dataArray);
+        const ctx = audioCtxRef.current;
+        
+        const sampleRate = ctx.sampleRate;
+        const markBin = Math.round(MARK_FREQ * 2048 / sampleRate);
+        const spaceBin = Math.round(SPACE_FREQ * 2048 / sampleRate);
+        
+        const loop = () => {
+            requestRef.current = requestAnimationFrame(loop);
+            analyserRef.current!.getByteFrequencyData(dataArray);
 
-        const ctx = this.canvasCtx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+            // Calculate energy in our target bands
+            // We average the bin and its neighbors to capture the signal even if slightly off-pitch
+            const getEnergy = (bin: number) => (dataArray[bin-1] + dataArray[bin] + dataArray[bin+1]) / 3;
 
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, w, h);
+            const markEnergy = getEnergy(markBin);
+            const spaceEnergy = getEnergy(spaceBin);
+            const noiseFloor = 30; 
 
-        const barWidth = (w / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
+            // Update debug info if we hear something strong
+            if(markEnergy > noiseFloor || spaceEnergy > noiseFloor) {
+                const signal = markEnergy > spaceEnergy ? '1 (MARK)' : '0 (SPACE)';
+                const strength = Math.max(markEnergy, spaceEnergy).toFixed(0);
+                setDebugInfo(`RX Signal: ${signal} | Vol: ${strength}`);
+            } else {
+                 setDebugInfo(`Listening (${(SPACE_FREQ/1000).toFixed(1)}kHz - ${(MARK_FREQ/1000).toFixed(1)}kHz)...`);
+            }
+        };
+        loop();
+    };
 
-        for (let i = 0; i < bufferLength; i++) {
-            barHeight = dataArray[i] / 2;
+    const handleSend = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inputText.trim()) return;
+        transmitMessage(inputText);
+        setInputText("");
+    };
+
+    const addMessage = (text: string, sender: 'me' | 'other' | 'system') => {
+        setMessages(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            text,
+            sender,
+            timestamp: new Date()
+        }]);
+    };
+
+    return (
+        <div className="flex flex-col h-[100dvh] w-full bg-slate-900 text-slate-100 font-sans overflow-hidden">
             
-            // Color mapping based on intensity
-            const g = barHeight + (25 * (i/bufferLength));
-            ctx.fillStyle = `rgb(0, ${g*2}, 0)`;
-            
-            // Highlight target frequencies
-            // (Rough approximation of bin index)
-            // const freq = i * CONFIG.sampleRate / (2048 * 2);
-            
-            ctx.fillRect(x, h - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
-        }
-    }
+            {/* Header */}
+            <header className="bg-slate-800 border-b border-slate-700 p-3 shadow-md flex items-center justify-between shrink-0 z-20">
+                <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-full ${isTransmitting ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700/50 text-slate-400'}`}>
+                         <Activity className={`w-5 h-5 ${isTransmitting ? 'animate-pulse' : ''}`} />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-lg leading-tight">SonicChat</h1>
+                        <p className="text-[10px] text-slate-400">Ultrasonic FSK Modem</p>
+                    </div>
+                </div>
+                
+                {!isAudioReady ? (
+                    <button 
+                        onClick={initAudio}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-full font-bold shadow-lg shadow-blue-900/20 animate-pulse transition-all"
+                    >
+                        Tap to Connect
+                    </button>
+                ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/30 px-3 py-1.5 rounded-full border border-emerald-900/50">
+                        <Wifi className="w-3.5 h-3.5" />
+                        <span className="font-medium">Online</span>
+                    </div>
+                )}
+            </header>
+
+            {/* Messages Area - Flex 1 to take remaining space, with scrolling */}
+            <main className="flex-1 overflow-y-auto p-4 space-y-4 relative w-full">
+                {messages.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-600">
+                        <p>No messages yet</p>
+                    </div>
+                )}
+                
+                {messages.map((msg) => (
+                    <div 
+                        key={msg.id} 
+                        className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                    >
+                        <div className={`
+                            max-w-[85%] sm:max-w-[70%] px-4 py-3 shadow-sm text-sm break-words
+                            ${msg.sender === 'me' 
+                                ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none' 
+                                : (msg.sender === 'system' 
+                                    ? 'bg-transparent text-slate-500 text-xs text-center w-full shadow-none my-2' 
+                                    : 'bg-slate-700 text-slate-100 rounded-2xl rounded-tl-none')}
+                        `}>
+                            {msg.text}
+                            {msg.sender !== 'system' && (
+                                <p className={`text-[10px] mt-1.5 text-right opacity-60 ${msg.sender === 'me' ? 'text-blue-100' : 'text-slate-300'}`}>
+                                    {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+                <div ref={messagesEndRef} className="h-2" />
+            </main>
+
+            {/* Debug Info Bar */}
+            <div className="bg-black/20 backdrop-blur-sm p-1 text-[10px] text-slate-500 text-center select-none shrink-0 border-t border-slate-800/50">
+                {debugInfo}
+            </div>
+
+            {/* Input Area */}
+            <footer className="bg-slate-800 p-3 shrink-0 pb-safe z-20">
+                <form 
+                    onSubmit={handleSend}
+                    className="flex items-center gap-2 w-full max-w-4xl mx-auto bg-slate-900 p-1.5 rounded-full border border-slate-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all"
+                >
+                    <input
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-transparent text-white px-4 py-2.5 focus:outline-none text-base placeholder:text-slate-600"
+                        disabled={!isAudioReady}
+                        autoComplete="off"
+                    />
+                    <button 
+                        type="submit" 
+                        disabled={!inputText.trim() || !isAudioReady}
+                        className={`
+                            p-3 rounded-full flex items-center justify-center transition-all shrink-0
+                            ${inputText.trim() && isAudioReady 
+                                ? 'bg-blue-600 text-white shadow-lg hover:bg-blue-500 scale-100' 
+                                : 'bg-slate-700 text-slate-500 cursor-not-allowed scale-95'}
+                        `}
+                    >
+                        {isTransmitting ? <Activity className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-0.5" />}
+                    </button>
+                </form>
+                {!isAudioReady && (
+                    <p className="text-center text-xs text-amber-500/80 mt-2 font-medium animate-pulse">
+                        Tap "Tap to Connect" at the top to enable chat
+                    </p>
+                )}
+            </footer>
+        </div>
+    );
 }
-
-// Init
-window.app = new EchoModem();
-
-</script>
-</body>
-</html>
