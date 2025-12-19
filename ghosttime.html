@@ -7,7 +7,8 @@
     
     <!-- External Libraries -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- Switch to QRious for reliable Canvas QR generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <!-- Phosphor Icons for minimalist look -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -140,11 +141,10 @@
             margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;
             display: flex; flex-direction: column; align-items: center; gap: 10px;
         }
-        #qr-image { 
-            width: 180px; height: 180px; 
-            border: 8px solid #fff; /* Thick white border for scanning contrast */
+        
+        #qr-canvas {
+            border: 8px solid #fff;
             background: #fff;
-            display: block;
             image-rendering: pixelated;
         }
         
@@ -160,7 +160,6 @@
             background: #000; 
             border: 2px solid var(--accent);
         }
-        /* Override internal library styles for cleaner look */
         #reader video { object-fit: cover; }
         
         .close-modal {
@@ -285,11 +284,11 @@
     <div id="intro-panel">
         <div class="card">
             <h1>Ghost<span>Time</span></h1>
-            <p class="subtitle">Secure P2P Link [v1.1]</p>
+            <p class="subtitle">Secure P2P Link [v1.2]</p>
 
             <!-- ID Display -->
             <div style="text-align: left; width: 100%; margin-bottom: 5px;">
-                <span style="font-size: 0.7rem; color: #666; text-transform: uppercase;">// My Node ID (Share This)</span>
+                <span style="font-size: 0.7rem; color: #666; text-transform: uppercase;">// My Node ID</span>
             </div>
             <div id="my-id-display" onclick="copyId()" title="Click to Copy" role="button" tabindex="0">...</div>
 
@@ -314,7 +313,7 @@
 
             <!-- QR Display Area -->
             <div id="qr-section" class="hidden">
-                <img id="qr-image" alt="Generating QR..." src="">
+                <canvas id="qr-canvas"></canvas>
                 <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; text-transform: uppercase;">[SCAN WITH APP SCANNER]</p>
             </div>
             
@@ -397,7 +396,7 @@
             remoteVideo: document.getElementById('remote-video'),
             statusMsg: document.getElementById('status-msg'),
             qrSection: document.getElementById('qr-section'),
-            qrImage: document.getElementById('qr-image'),
+            qrCanvas: document.getElementById('qr-canvas'), // Reverted to canvas for QRious
             qrModal: document.getElementById('qr-scanner-modal'),
             chatPanel: document.getElementById('chat-panel'),
             chatMsgs: document.getElementById('chat-messages'),
@@ -426,7 +425,7 @@
 
         // --- Helper: Generate 5-Char ID ---
         function generateId(length) {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous chars like I, O, 1, 0
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
             let result = '';
             for (let i = 0; i < length; i++) {
                 result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -450,8 +449,8 @@
                 els.statusMsg.innerText = 'NODE ONLINE. AWAITING UPLINK.';
                 els.btnConnect.disabled = false;
                 
-                // Delay slightly to ensure library is ready
-                setTimeout(() => generateQRCode(id), 500);
+                // Use QRious to generate QR
+                generateQRCode(id);
                 
                 console.log('My Peer ID:', id);
             });
@@ -667,21 +666,27 @@
             if (e.key === 'Enter') sendChatMessage();
         }
 
-        // --- QR Code Logic ---
+        // --- QR Code Logic (QRious) ---
         function generateQRCode(text) {
-            // Encode ONLY the 5-char ID
-            QRCode.toDataURL(text, {
-                width: 250,
-                margin: 2,
-                color: { dark: "#000000", light: "#ffffff" },
-                errorCorrectionLevel: 'H'
-            }, function (error, url) {
-                if (error) {
-                    console.error(error);
-                    return;
-                }
-                els.qrImage.src = url;
-            });
+            try {
+                // Ensure canvas is clear/reset
+                const canvas = els.qrCanvas;
+                
+                // Create new QRious instance
+                const qr = new QRious({
+                    element: canvas,
+                    value: text,
+                    size: 180,
+                    background: 'white',
+                    foreground: 'black',
+                    level: 'H' // High error correction
+                });
+                
+                console.log('QR Generated via QRious for:', text);
+            } catch (e) {
+                console.error('QR Gen Failed:', e);
+                showToast('QR GEN FAILED', 'error');
+            }
         }
 
         function toggleLocalQR() {
