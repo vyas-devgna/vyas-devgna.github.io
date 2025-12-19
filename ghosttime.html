@@ -36,20 +36,19 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            /* Scanline effect optional but adds to theme */
+            /* Scanline effect */
             background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
         }
 
-        /* --- Utilities & Typography --- */
+        /* --- Utilities --- */
         .hidden { display: none !important; }
         .flex-center { display: flex; align-items: center; justify-content: center; }
-        .ghost-text { text-transform: uppercase; letter-spacing: 2px; }
         
         .btn { 
             cursor: pointer; 
             border: 1px solid var(--accent);
-            transition: all 0.1s steps(2); /* Mechanical feel */
+            transition: all 0.1s steps(2);
             font-family: inherit;
             text-transform: uppercase;
             font-weight: bold;
@@ -98,6 +97,7 @@
             border-bottom: 1px solid var(--accent);
             color: var(--text-main); padding: 12px 15px;
             font-size: 1rem; font-family: inherit;
+            text-transform: uppercase;
         }
         input[type="text"]:focus { background: #111; }
         input[type="text"]::placeholder { color: #555; text-transform: uppercase; font-size: 0.8rem; }
@@ -126,12 +126,12 @@
         .btn-icon:hover { background: var(--accent); color: #000; }
 
         #my-id-display {
-            font-family: inherit; color: var(--accent); letter-spacing: 1px;
-            cursor: pointer; padding: 10px;
-            border: 1px dashed var(--accent);
+            font-family: inherit; color: var(--accent); letter-spacing: 2px;
+            cursor: pointer; padding: 15px;
+            border: 2px solid var(--accent);
             background: #000; display: inline-block; margin-bottom: 20px;
-            font-weight: bold; width: 100%;
-            word-break: break-all;
+            font-weight: 800; font-size: 1.5rem; width: 100%;
+            text-transform: uppercase;
         }
         #my-id-display:hover { background: #111; }
 
@@ -141,23 +141,32 @@
             display: flex; flex-direction: column; align-items: center; gap: 10px;
         }
         #qr-image { 
-            width: 150px; height: 150px; 
-            border: 4px solid #fff; 
-            background: #fff; /* Ensure background is white if image fails */
+            width: 180px; height: 180px; 
+            border: 8px solid #fff; /* Thick white border for scanning contrast */
+            background: #fff;
             display: block;
+            image-rendering: pixelated;
         }
         
         /* --- Scanner Modal --- */
         #qr-scanner-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 200;
+            background: rgba(0,0,0,0.98); z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #reader { width: 300px; height: 300px; background: #000; border: 1px solid var(--accent); }
+        
+        #reader { 
+            width: 100%; max-width: 400px; 
+            background: #000; 
+            border: 2px solid var(--accent);
+        }
+        /* Override internal library styles for cleaner look */
+        #reader video { object-fit: cover; }
+        
         .close-modal {
             margin-top: 20px; background: #000; border: 1px solid var(--danger);
-            color: var(--danger); padding: 8px 16px; 
-            text-transform: uppercase; font-weight: bold;
+            color: var(--danger); padding: 12px 24px; 
+            text-transform: uppercase; font-weight: bold; letter-spacing: 1px;
         }
         .close-modal:hover { background: var(--danger); color: #000; }
 
@@ -169,7 +178,7 @@
 
         #remote-video {
             width: 100%; height: 100%; object-fit: cover;
-            filter: grayscale(100%) contrast(1.1); /* Slight filter for cyber feel */
+            filter: grayscale(100%) contrast(1.1);
         }
 
         #local-video-container {
@@ -180,7 +189,6 @@
             z-index: 20;
         }
         
-        /* Mobile adjustment for local video */
         @media (min-width: 768px) {
             #local-video-container { width: 220px; height: 165px; bottom: 20px; }
         }
@@ -277,18 +285,18 @@
     <div id="intro-panel">
         <div class="card">
             <h1>Ghost<span>Time</span></h1>
-            <p class="subtitle">Secure P2P Link [v1.0]</p>
+            <p class="subtitle">Secure P2P Link [v1.1]</p>
 
             <!-- ID Display -->
             <div style="text-align: left; width: 100%; margin-bottom: 5px;">
-                <span style="font-size: 0.7rem; color: #666; text-transform: uppercase;">// My Node ID</span>
+                <span style="font-size: 0.7rem; color: #666; text-transform: uppercase;">// My Node ID (Share This)</span>
             </div>
-            <div id="my-id-display" onclick="copyId()" title="Click to Copy" role="button" tabindex="0">INITIALIZING_NODE...</div>
+            <div id="my-id-display" onclick="copyId()" title="Click to Copy" role="button" tabindex="0">...</div>
 
             <!-- Connection Inputs -->
             <div class="input-group">
                 <div class="action-row">
-                    <input type="text" id="remote-id-input" placeholder="TARGET_ID" aria-label="Remote Peer ID">
+                    <input type="text" id="remote-id-input" placeholder="ENTER 5-CHAR ID" aria-label="Remote Peer ID" maxlength="5">
                     <button class="btn btn-icon" id="btn-scan-qr" onclick="startQRScanner()" aria-label="Scan QR Code">
                         <i class="ph ph-qr-code"></i>
                     </button>
@@ -299,18 +307,15 @@
             </div>
 
             <div class="action-row">
-                <button class="btn btn-secondary" onclick="shareLink()" aria-label="Share Link">
-                    <i class="ph ph-share-network" style="margin-right: 5px;"></i> COPY_LINK
-                </button>
                 <button class="btn btn-secondary" onclick="toggleLocalQR()" aria-label="Show My QR">
-                    <i class="ph ph-qr-code" style="margin-right: 5px;"></i> GEN_QR
+                    <i class="ph ph-qr-code" style="margin-right: 5px;"></i> SHOW_MY_QR
                 </button>
             </div>
 
             <!-- QR Display Area -->
             <div id="qr-section" class="hidden">
-                <img id="qr-image" alt="My QR Code">
-                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; text-transform: uppercase;">[Scan for uplink]</p>
+                <img id="qr-image" alt="Generating QR..." src="">
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; text-transform: uppercase;">[SCAN WITH APP SCANNER]</p>
             </div>
             
             <p id="status-msg" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 15px; height: 1.2em; text-transform: uppercase;">System Standby</p>
@@ -364,13 +369,14 @@
 
     <!-- QR Scanner Modal -->
     <div id="qr-scanner-modal" class="hidden">
+        <h2 style="color: white; margin-bottom: 20px; text-transform: uppercase;">[ ALIGN ID QR CODE ]</h2>
         <div id="reader"></div>
-        <button class="btn close-modal" onclick="stopQRScanner()">[ABORT SCAN]</button>
+        <button class="btn close-modal" onclick="stopQRScanner()">[ ABORT SCAN ]</button>
     </div>
 
     <script>
         // --- Configuration & State ---
-        const PEER_CONFIG = { debug: 1 }; // Default PeerJS public server
+        const PEER_CONFIG = { debug: 1 }; 
         let peer = null;
         let myPeerId = null;
         let activeCall = null;
@@ -406,7 +412,6 @@
         window.addEventListener('load', () => {
             initPeer();
             setupInputListeners();
-            checkUrlParams();
         });
 
         function showToast(msg, type = 'info') {
@@ -419,27 +424,44 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
+        // --- Helper: Generate 5-Char ID ---
+        function generateId(length) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous chars like I, O, 1, 0
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
         // --- PeerJS Setup ---
         function initPeer() {
-            els.statusMsg.innerText = 'INITIALIZING PROTOCOLS...';
-            peer = new Peer(null, PEER_CONFIG);
+            els.statusMsg.innerText = 'INITIALIZING NODE...';
+            
+            // Generate custom short ID
+            const customId = generateId(5);
+            
+            // Attempt to create peer with custom ID
+            peer = new Peer(customId, PEER_CONFIG);
 
             peer.on('open', (id) => {
                 myPeerId = id;
                 els.myIdDisplay.innerText = id;
                 els.statusMsg.innerText = 'NODE ONLINE. AWAITING UPLINK.';
                 els.btnConnect.disabled = false;
-                generateQRCode(id);
+                
+                // Delay slightly to ensure library is ready
+                setTimeout(() => generateQRCode(id), 500);
+                
                 console.log('My Peer ID:', id);
             });
 
             peer.on('call', (call) => {
                 showToast('INCOMING UPLINK DETECTED', 'info');
-                // Answer automatically (or could add UI to accept/reject)
                 getUserMedia((stream) => {
                     localStream = stream;
                     els.localVideo.srcObject = stream;
-                    call.answer(stream); // Answer with local stream
+                    call.answer(stream);
                     handleStream(call);
                     setupUIForCall();
                 });
@@ -451,9 +473,14 @@
 
             peer.on('error', (err) => {
                 console.error(err);
+                if (err.type === 'unavailable-id') {
+                    // If 5-char ID taken, retry (recursive)
+                    peer.destroy();
+                    initPeer(); 
+                    return;
+                }
                 let msg = 'CONNECTION_ERROR';
                 if (err.type === 'peer-unavailable') msg = 'TARGET_NOT_FOUND';
-                if (err.type === 'browser-incompatible') msg = 'SYSTEM_INCOMPATIBLE';
                 showToast(msg, 'error');
                 els.statusMsg.innerText = 'ERROR: ' + msg;
             });
@@ -464,17 +491,6 @@
             });
         }
 
-        function checkUrlParams() {
-            const params = new URLSearchParams(window.location.search);
-            const remoteId = params.get('peerId');
-            if (remoteId) {
-                els.remoteIdInput.value = remoteId;
-                showToast('TARGET LOCKED FROM LINK', 'info');
-                // Optional: Auto-connect logic could go here
-                els.remoteIdInput.focus();
-            }
-        }
-
         // --- Media Handling ---
         function getUserMedia(callback) {
             navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true })
@@ -482,33 +498,21 @@
                 .catch(err => {
                     console.error('Media Access Error:', err);
                     showToast('MEDIA DEVICE ACCESS DENIED', 'error');
-                    // Fallback to audio only?
-                    navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-                        .then(callback)
-                        .catch(() => showToast('NO DEVICES FOUND', 'error'));
                 });
         }
 
         function handleStream(call) {
             activeCall = call;
-            
             call.on('stream', (remoteStream) => {
                 els.remoteVideo.srcObject = remoteStream;
             });
-
-            call.on('close', () => {
-                endCallUI();
-            });
-
-            call.on('error', (err) => {
-                console.error('Call Error:', err);
-                endCall();
-            });
+            call.on('close', () => endCallUI());
+            call.on('error', (err) => { console.error(err); endCall(); });
         }
 
         // --- Connection Logic ---
         function connectToPeer() {
-            const remoteId = els.remoteIdInput.value.trim();
+            const remoteId = els.remoteIdInput.value.trim().toUpperCase();
             if (!remoteId) return showToast('INPUT TARGET ID', 'error');
             if (remoteId === myPeerId) return showToast('INVALID TARGET: SELF', 'error');
 
@@ -516,11 +520,9 @@
             els.btnConnect.disabled = true;
             els.btnConnect.innerHTML = '<i class="ph ph-spinner ph-spin"></i> CONNECTING...';
 
-            // 1. Establish Data Connection (Chat)
             const conn = peer.connect(remoteId);
             setupDataConnection(conn);
 
-            // 2. Establish Media Connection (Video)
             getUserMedia((stream) => {
                 localStream = stream;
                 els.localVideo.srcObject = stream;
@@ -533,7 +535,6 @@
         function setupUIForCall() {
             els.introPanel.classList.add('hidden');
             els.videoRoom.classList.remove('hidden');
-            // Reset controls state
             els.btnAudio.classList.remove('danger');
             els.btnVideo.classList.remove('danger');
             els.btnScreen.classList.remove('active');
@@ -548,29 +549,23 @@
         function endCallUI() {
             activeCall = null;
             dataConnection = null;
-            
-            // Stop Local Stream Tracks
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             if (screenStream) screenStream.getTracks().forEach(track => track.stop());
             localStream = null;
             screenStream = null;
             isScreenSharing = false;
-
             els.remoteVideo.srcObject = null;
             els.localVideo.srcObject = null;
-
             els.videoRoom.classList.add('hidden');
             els.introPanel.classList.remove('hidden');
             els.btnConnect.innerHTML = '> ESTABLISH_UPLINK';
             els.btnConnect.disabled = false;
             els.statusMsg.innerText = 'UPLINK TERMINATED.';
-            
-            // Clear chat
             els.chatMsgs.innerHTML = '';
             els.chatPanel.classList.remove('open');
         }
 
-        // --- Features: Mute, Video, Screen Share ---
+        // --- Features ---
         function toggleAudio() {
             if (!localStream) return;
             const audioTrack = localStream.getAudioTracks()[0];
@@ -584,7 +579,6 @@
 
         function toggleVideo() {
             if (!localStream) return;
-            // Note: If screen sharing is active, this toggles the camera track in the background or the screen track logic
             const videoTrack = localStream.getVideoTracks()[0];
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled;
@@ -596,32 +590,25 @@
 
         async function toggleScreenShare() {
             if (isScreenSharing) {
-                // Stop Screen Share
                 const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 const camTrack = camStream.getVideoTracks()[0];
                 replaceVideoTrack(camTrack);
-                
-                // Stop screen track
                 screenStream.getTracks().forEach(t => t.stop());
                 screenStream = null;
                 isScreenSharing = false;
-                
-                els.localVideo.srcObject = localStream; // Show camera locally
+                els.localVideo.srcObject = localStream;
                 els.btnScreen.classList.remove('active');
             } else {
-                // Start Screen Share
                 try {
                     screenStream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
-                    
                     screenTrack.onended = () => { if (isScreenSharing) toggleScreenShare(); };
-                    
                     replaceVideoTrack(screenTrack);
-                    els.localVideo.srcObject = screenStream; // Show screen locally
+                    els.localVideo.srcObject = screenStream;
                     isScreenSharing = true;
                     els.btnScreen.classList.add('active');
                 } catch (err) {
-                    console.error("Error sharing screen:", err);
+                    console.error(err);
                     showToast('SCREEN SHARE ABORTED', 'info');
                 }
             }
@@ -632,21 +619,15 @@
             const sender = activeCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
             if (sender) {
                 sender.replaceTrack(newTrack);
-                // Update local stream ref for consistency
                 const oldTrack = localStream.getVideoTracks()[0];
                 localStream.removeTrack(oldTrack);
                 localStream.addTrack(newTrack);
             }
         }
 
-        // --- Data Connection (Chat) ---
+        // --- Data/Chat ---
         function setupDataConnection(conn) {
             dataConnection = conn;
-            
-            conn.on('open', () => {
-                console.log('Data connection established');
-            });
-
             conn.on('data', (data) => {
                 if (data.type === 'chat') {
                     addMessageToChat(data.msg, 'remote');
@@ -669,7 +650,6 @@
         function sendChatMessage() {
             const text = els.chatInput.value.trim();
             if (!text || !dataConnection) return;
-            
             dataConnection.send({ type: 'chat', msg: text });
             addMessageToChat(text, 'local');
             els.chatInput.value = '';
@@ -689,20 +669,18 @@
 
         // --- QR Code Logic ---
         function generateQRCode(text) {
-            const link = `${window.location.href.split('?')[0]}?peerId=${text}`;
-            // Use toDataURL instead of toCanvas to avoid hidden canvas issues
-            QRCode.toDataURL(link, {
-                width: 150,
+            // Encode ONLY the 5-char ID
+            QRCode.toDataURL(text, {
+                width: 250,
+                margin: 2,
                 color: { dark: "#000000", light: "#ffffff" },
-                margin: 1
+                errorCorrectionLevel: 'H'
             }, function (error, url) {
                 if (error) {
                     console.error(error);
-                    showToast('QR GENERATION FAILED', 'error');
                     return;
                 }
                 els.qrImage.src = url;
-                console.log('QR Generated');
             });
         }
 
@@ -714,7 +692,12 @@
             els.qrModal.classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
             
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            // Scanner config
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
             
             html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
             .catch(err => {
@@ -724,26 +707,22 @@
             });
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            // Check if it's a URL or raw ID
-            let id = decodedText;
-            try {
-                const url = new URL(decodedText);
-                if (url.searchParams.has('peerId')) {
-                    id = url.searchParams.get('peerId');
-                }
-            } catch (e) {
-                // Not a URL, use raw text
-            }
+        function onScanSuccess(decodedText) {
+            // The text is just the ID now, no URL parsing needed
+            let id = decodedText.trim().toUpperCase();
             
-            els.remoteIdInput.value = id;
-            showToast('QR SCANNED', 'info');
-            stopQRScanner();
-            els.remoteIdInput.focus();
+            // Basic validation for 5-char ID
+            if (id.length === 5) {
+                els.remoteIdInput.value = id;
+                showToast('TARGET ACQUIRED: ' + id, 'success');
+                stopQRScanner();
+            } else {
+                showToast('INVALID ID FORMAT', 'error');
+            }
         }
 
         function stopQRScanner() {
-            if (html5QrCode) {
+            if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().then(() => {
                     html5QrCode.clear();
                     els.qrModal.classList.add('hidden');
@@ -753,24 +732,16 @@
             }
         }
 
-        // --- Helpers ---
         function copyId() {
             if (!myPeerId) return;
             navigator.clipboard.writeText(myPeerId).then(() => {
                 showToast('ID COPIED TO BUFFER');
             });
         }
-        
-        function shareLink() {
-            if (!myPeerId) return;
-            const link = `${window.location.href.split('?')[0]}?peerId=${myPeerId}`;
-            navigator.clipboard.writeText(link).then(() => {
-                showToast('UPLINK URL COPIED');
-            });
-        }
 
         function setupInputListeners() {
             els.remoteIdInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.toUpperCase();
                 els.btnConnect.disabled = e.target.value.trim().length === 0;
             });
             els.remoteIdInput.addEventListener('keydown', (e) => {
