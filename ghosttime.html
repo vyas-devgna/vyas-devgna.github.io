@@ -140,7 +140,12 @@
             margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;
             display: flex; flex-direction: column; align-items: center; gap: 10px;
         }
-        #qr-canvas { width: 150px; height: 150px; display: none; border: 4px solid #fff; }
+        #qr-image { 
+            width: 150px; height: 150px; 
+            border: 4px solid #fff; 
+            background: #fff; /* Ensure background is white if image fails */
+            display: block;
+        }
         
         /* --- Scanner Modal --- */
         #qr-scanner-modal {
@@ -304,7 +309,7 @@
 
             <!-- QR Display Area -->
             <div id="qr-section" class="hidden">
-                <canvas id="qr-canvas"></canvas>
+                <img id="qr-image" alt="My QR Code">
                 <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; text-transform: uppercase;">[Scan for uplink]</p>
             </div>
             
@@ -386,7 +391,7 @@
             remoteVideo: document.getElementById('remote-video'),
             statusMsg: document.getElementById('status-msg'),
             qrSection: document.getElementById('qr-section'),
-            qrCanvas: document.getElementById('qr-canvas'),
+            qrImage: document.getElementById('qr-image'),
             qrModal: document.getElementById('qr-scanner-modal'),
             chatPanel: document.getElementById('chat-panel'),
             chatMsgs: document.getElementById('chat-messages'),
@@ -685,12 +690,18 @@
         // --- QR Code Logic ---
         function generateQRCode(text) {
             const link = `${window.location.href.split('?')[0]}?peerId=${text}`;
-            QRCode.toCanvas(els.qrCanvas, link, {
+            // Use toDataURL instead of toCanvas to avoid hidden canvas issues
+            QRCode.toDataURL(link, {
                 width: 150,
                 color: { dark: "#000000", light: "#ffffff" },
                 margin: 1
-            }, function (error) {
-                if (error) console.error(error);
+            }, function (error, url) {
+                if (error) {
+                    console.error(error);
+                    showToast('QR GENERATION FAILED', 'error');
+                    return;
+                }
+                els.qrImage.src = url;
                 console.log('QR Generated');
             });
         }
