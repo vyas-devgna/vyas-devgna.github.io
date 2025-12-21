@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NOMAD LINK v1.0</title>
+    <!-- PeerJS for Signaling (Free Public Broker) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --border: #ffffff;
+            --dim: #444444;
+            --font-stack: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; touch-action: manipulation; }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: var(--font-stack);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .col { flex-direction: column; }
+        .grow { flex-grow: 1; }
+        .scroll-y { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .border-b { border-bottom: 2px solid var(--border); }
+        .border-t { border-top: 2px solid var(--border); }
+        .p-2 { padding: 10px; }
+        .m-1 { margin: 5px; }
+
+        /* --- COMPONENTS --- */
+        button {
+            background: var(--bg);
+            color: var(--fg);
+            border: 2px solid var(--border);
+            padding: 10px 15px;
+            font-family: var(--font-stack);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 0; /* Blocky */
+        }
+        button:active { background: var(--fg); color: var(--bg); }
+        button:disabled { border-color: var(--dim); color: var(--dim); cursor: not-allowed; }
+
+        input[type="text"] {
+            background: var(--bg);
+            color: var(--fg);
+            border: 2px solid var(--border);
+            padding: 10px;
+            font-family: var(--font-stack);
+            width: 100%;
+            border-radius: 0;
+        }
+
+        /* --- LAYOUTS --- */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        
+        .peer-select-btn { width: 280px; margin-bottom: 10px; text-align: left; }
+
+        #main-ui { display: flex; height: 100%; width: 100%; }
+        
+        #sidebar {
+            width: 250px;
+            border-right: 2px solid var(--border);
+            display: flex; flex-direction: column;
+        }
+
+        #chat-area { flex-grow: 1; display: flex; flex-direction: column; }
+
+        /* Mobile Responsive */
+        @media (max-width: 700px) {
+            #main-ui { flex-direction: column; }
+            #sidebar { width: 100%; height: 40%; border-right: none; border-bottom: 2px solid var(--border); }
+            #chat-area { height: 60%; }
+        }
+
+        /* --- LISTS --- */
+        .peer-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px; border-bottom: 1px solid var(--dim);
+        }
+        .status-indicator { width: 10px; height: 10px; border: 1px solid var(--fg); margin-right: 8px; }
+        .status-online { background: var(--fg); }
+        .status-offline { background: transparent; }
+
+        .msg { padding: 5px 10px; margin-bottom: 5px; word-break: break-word; }
+        .msg-meta { font-size: 0.7em; color: #aaa; margin-bottom: 2px; }
+        .msg-own { text-align: right; }
+        .msg-own .msg-meta { color: #fff; }
+
+        /* --- CALL MODAL --- */
+        #call-modal {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--bg); border-top: 4px solid var(--fg);
+            padding: 20px; z-index: 50;
+        }
+        .call-status-bar { background: var(--fg); color: var(--bg); padding: 5px; text-align: center; font-weight: bold; }
+
+        /* --- CHECKBOX --- */
+        input[type="checkbox"] {
+            transform: scale(1.5); margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- IDENTITY SELECTION -->
+    <div id="login-screen">
+        <h1 style="border: 4px solid white; padding: 10px;">NOMAD LINK</h1>
+        <p>SECURE P2P MESH</p>
+        <p>Select Identity:</p>
+        <div id="identity-list"></div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-ui" class="hidden">
+        
+        <!-- SIDEBAR: PEERS & CALL CONTROLS -->
+        <div id="sidebar">
+            <div class="p-2 border-b" style="background: #222;">
+                ID: <span id="my-id-display">...</span>
+            </div>
+            
+            <div class="p-2 border-b flex justify-between">
+                <strong>TEAM</strong>
+                <span id="conn-status">OFFLINE</span>
+            </div>
+
+            <div id="peer-list" class="scroll-y grow">
+                <!-- Peers injected here -->
+            </div>
+
+            <div class="p-2 border-t">
+                <button id="btn-call-selected" style="width: 100%" onclick="app.startCall()">INITIATE AUDIO CALL</button>
+            </div>
+        </div>
+
+        <!-- CHAT AREA -->
+        <div id="chat-area">
+            <div id="chat-history" class="scroll-y grow p-2">
+                <div style="text-align: center; margin-top: 50px; color: #666;">-- NO MESSAGES --</div>
+            </div>
+            <div class="p-2 border-t flex">
+                <input type="text" id="msg-input" placeholder="TYPE MESSAGE..." autocomplete="off">
+                <button onclick="app.sendMessage()" style="border-left: none;">SEND</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CALL UI OVERLAY -->
+    <div id="call-modal" class="hidden">
+        <div id="call-text" style="font-size: 1.2em; margin-bottom: 20px;">INCOMING CALL...</div>
+        <div id="call-actions" class="flex" style="gap: 10px;">
+            <button id="btn-accept" class="grow" onclick="app.acceptCall()">ACCEPT</button>
+            <button id="btn-decline" class="grow" onclick="app.endCall()">END / DECLINE</button>
+            <button id="btn-mute" class="grow hidden" onclick="app.toggleMute()">MUTE MIC</button>
+        </div>
+        <div id="active-participants" style="margin-top: 10px; font-size: 0.8em;"></div>
+    </div>
+
+    <!-- AUDIO ELEMENTS CONTAINER -->
+    <div id="audio-container" class="hidden"></div>
+
+<script>
+/**
+ * NOMAD LINK - Single File P2P System
+ * Target: Low Bandwidth, High Latency, Unstable 2G/3G
+ */
+
+/* --- CONFIGURATION --- */
+const PEER_IDS = [
+    "DevgnaVyas00",
+    "YashPandya11",
+    "PrathamSukhadia22",
+    "MilanSharma33",
+    "TirthPrajapati44",
+    "NishitRana55"
+];
+
+// Audio optimized for speech and low bandwidth
+const MEDIA_CONSTRAINTS = {
+    audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1, // Mono
+    },
+    video: false
+};
+
+/* --- STATE MANAGEMENT --- */
+const state = {
+    myId: null,
+    peer: null, // PeerJS instance
+    conns: {}, // DataConnections: { peerId: conn }
+    mediaConns: {}, // MediaConnections: { peerId: call }
+    localStream: null,
+    db: null,
+    callActive: false,
+    participants: new Set(), // IDs in current call
+    isMuted: false
+};
+
+/* --- INDEXEDDB PERSISTENCE --- */
+const DB_NAME = 'NomadLinkDB';
+const STORE_NAME = 'messages';
+
+const Storage = {
+    init: () => {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+            };
+            request.onsuccess = (e) => {
+                state.db = e.target.result;
+                resolve();
+            };
+            request.onerror = (e) => reject(e);
+        });
+    },
+
+    saveMessage: (msg) => {
+        return new Promise((resolve) => {
+            if(!state.db) return resolve();
+            const tx = state.db.transaction([STORE_NAME], 'readwrite');
+            tx.objectStore(STORE_NAME).put(msg);
+            tx.oncomplete = () => resolve();
+        });
+    },
+
+    getAllMessages: () => {
+        return new Promise((resolve) => {
+            if(!state.db) return resolve([]);
+            const tx = state.db.transaction([STORE_NAME], 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const index = store.index('timestamp');
+            const request = index.getAll();
+            request.onsuccess = () => resolve(request.result);
+        });
+    }
+};
+
+/* --- APP LOGIC --- */
+const app = {
+    init: async () => {
+        await Storage.init();
+        app.renderLogin();
+    },
+
+    renderLogin: () => {
+        const list = document.getElementById('identity-list');
+        PEER_IDS.forEach(id => {
+            const btn = document.createElement('button');
+            btn.className = 'peer-select-btn';
+            btn.innerText = `> ${id}`;
+            btn.onclick = () => app.login(id);
+            list.appendChild(btn);
+        });
+    },
+
+    login: (selectedId) => {
+        state.myId = selectedId;
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-ui').classList.remove('hidden');
+        document.getElementById('my-id-display').innerText = state.myId;
+        
+        app.renderPeerList();
+        app.loadHistory();
+        app.initNetwork();
+    },
+
+    renderPeerList: () => {
+        const container = document.getElementById('peer-list');
+        container.innerHTML = '';
+        PEER_IDS.forEach(id => {
+            if (id === state.myId) return;
+            
+            const div = document.createElement('div');
+            div.className = 'peer-item';
+            div.innerHTML = `
+                <div class="flex items-center">
+                    <input type="checkbox" id="chk-${id}" value="${id}">
+                    <div id="status-${id}" class="status-indicator status-offline"></div>
+                    <span>${id}</span>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    },
+
+    loadHistory: async () => {
+        const msgs = await Storage.getAllMessages();
+        const container = document.getElementById('chat-history');
+        container.innerHTML = '';
+        msgs.forEach(app.renderMessage);
+        app.scrollToBottom();
+    },
+
+    scrollToBottom: () => {
+        const el = document.getElementById('chat-history');
+        el.scrollTop = el.scrollHeight;
+    },
+
+    /* --- NETWORKING --- */
+    initNetwork: () => {
+        const statusEl = document.getElementById('conn-status');
+        
+        // Connect to PeerJS Public Cloud
+        state.peer = new Peer(state.myId, {
+            debug: 1
+        });
+
+        state.peer.on('open', (id) => {
+            statusEl.innerText = "ONLINE";
+            statusEl.style.color = "#0f0";
+            app.connectToAll();
+        });
+
+        state.peer.on('error', (err) => {
+            console.error(err);
+            statusEl.innerText = "ERR";
+            statusEl.style.color = "red";
+            // Retry logic would go here
+        });
+
+        // Handle Incoming Data (Chat & Signaling)
+        state.peer.on('connection', (conn) => {
+            app.handleDataConnection(conn);
+        });
+
+        // Handle Incoming Calls (Media)
+        state.peer.on('call', (call) => {
+            app.handleIncomingCall(call);
+        });
+    },
+
+    connectToAll: () => {
+        PEER_IDS.forEach(id => {
+            if (id === state.myId) return;
+            // Aggressively try to connect to everyone for chat
+            if (!state.conns[id]) {
+                const conn = state.peer.connect(id, { reliable: true });
+                app.handleDataConnection(conn);
+            }
+        });
+    },
+
+    handleDataConnection: (conn) => {
+        conn.on('open', () => {
+            state.conns[conn.peer] = conn;
+            app.updatePeerStatus(conn.peer, true);
+            // Sync: Send my last few messages to ensure they have them
+            // In a real app, use vector clocks. Here, simple push.
+        });
+
+        conn.on('data', (data) => {
+            // Data router
+            if (data.type === 'CHAT') {
+                app.handleIncomingMessage(data.payload);
+            } else if (data.type === 'CALL_INVITE') {
+                app.handleCallInvite(data);
+            }
+        });
+
+        conn.on('close', () => {
+            delete state.conns[conn.peer];
+            app.updatePeerStatus(conn.peer, false);
+            // If in call with them, they dropped
+            if (state.participants.has(conn.peer)) {
+                // UI update handled by media close usually, but fail-safe here
+            }
+        });
+        
+        // Handle connection errors (common in unstable nets)
+        conn.on('error', () => {
+             delete state.conns[conn.peer];
+             app.updatePeerStatus(conn.peer, false);
+        });
+    },
+
+    updatePeerStatus: (id, isOnline) => {
+        const el = document.getElementById(`status-${id}`);
+        if (el) {
+            el.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
+        }
+    },
+
+    /* --- CHAT SYSTEM --- */
+    sendMessage: async () => {
+        const input = document.getElementById('msg-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const msg = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            sender: state.myId,
+            text: text,
+            timestamp: Date.now()
+        };
+
+        // 1. Save Local
+        await Storage.saveMessage(msg);
+        app.renderMessage(msg);
+        app.scrollToBottom();
+
+        // 2. Broadcast to ALL connected peers
+        Object.values(state.conns).forEach(conn => {
+            if (conn.open) {
+                conn.send({ type: 'CHAT', payload: msg });
+            }
+        });
+
+        input.value = '';
+    },
+
+    handleIncomingMessage: async (msg) => {
+        // Deduplication via DB check (implicit via keyPath collision, but ui check needed)
+        // We trust IndexedDB to handle overwrite if ID matches
+        await Storage.saveMessage(msg);
+        
+        // Only render if not already in DOM (simple check)
+        const exists = document.getElementById(`msg-${msg.id}`);
+        if (!exists) {
+            app.renderMessage(msg);
+            app.scrollToBottom();
+        }
+    },
+
+    renderMessage: (msg) => {
+        const container = document.getElementById('chat-history');
+        const div = document.createElement('div');
+        const isMe = msg.sender === state.myId;
+        
+        div.id = `msg-${msg.id}`;
+        div.className = `msg ${isMe ? 'msg-own' : ''}`;
+        
+        const date = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        div.innerHTML = `
+            <div class="msg-meta">${isMe ? 'YOU' : msg.sender} • ${date}</div>
+            <div style="background: ${isMe ? '#fff' : '#222'}; color: ${isMe ? '#000' : '#fff'}; display: inline-block; padding: 8px; border: 1px solid white;">
+                ${app.escapeHtml(msg.text)}
+            </div>
+        `;
+        container.appendChild(div);
+    },
+
+    /* --- CALL SYSTEM (MESH) --- */
+    
+    // Step 1: Initiator selects peers and clicks Call
+    startCall: async () => {
+        const checkboxes = document.querySelectorAll('#peer-list input[type="checkbox"]:checked');
+        const targets = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (targets.length === 0) return alert("SELECT PEERS FIRST");
+
+        state.participants = new Set(targets);
+        state.participants.add(state.myId); // Add self
+
+        // Get Local Audio
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS);
+        } catch (e) {
+            alert("MIC ERROR: " + e.message);
+            return;
+        }
+
+        app.showCallModal(true, "CALLING...", true);
+
+        // Send INVITE to all targets
+        targets.forEach(targetId => {
+            const conn = state.conns[targetId];
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'CALL_INVITE',
+                    participants: Array.from(state.participants)
+                });
+            }
+        });
+        
+        // Optimistic: Start dialing them immediately via PeerJS media
+        app.dialPeers(targets);
+    },
+
+    // Step 2: Receiver gets INVITE
+    handleCallInvite: (data) => {
+        if (state.callActive) return; // Busy
+        
+        state.participants = new Set(data.participants);
+        app.showCallModal(true, `INCOMING CALL (${state.participants.size - 1} peers)`, false);
+    },
+
+    // Step 3: Receiver Accepts
+    acceptCall: async () => {
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS);
+        } catch (e) {
+            alert("MIC ERROR");
+            app.endCall();
+            return;
+        }
+
+        app.showCallModal(true, "CONNECTING AUDIO...", true);
+
+        // MESH STRATEGY: 
+        // 1. Call everyone else in the participant list
+        // 2. If they call me, handleIncomingCall takes over
+        const others = Array.from(state.participants).filter(id => id !== state.myId);
+        app.dialPeers(others);
+    },
+
+    // Initiate WebRTC Media calls
+    dialPeers: (targetIds) => {
+        targetIds.forEach(id => {
+            // Don't call if already connected
+            if (state.mediaConns[id]) return;
+
+            const call = state.peer.call(id, state.localStream);
+            app.setupMediaCall(call, id);
+        });
+    },
+
+    // Handle incoming WebRTC Media call
+    handleIncomingCall: (call) => {
+        // If we haven't accepted the UI invite yet, we can't answer (privacy)
+        // Unless we are already in a call, then auto-answer/merge (Mesh logic)
+        
+        if (!state.localStream) {
+            // We got a media call but haven't "Accepted" in UI.
+            // Wait for user to click Accept, then we answer this call.
+            // Store it temporarily?
+            // Simplified: We assume INVITE arrived first. If not, we ignore until user accepts INVITE.
+            // However, to be robust, if we get a CALL and we are NOT in a call, we could ring.
+            return; 
+        }
+
+        call.answer(state.localStream);
+        app.setupMediaCall(call, call.peer);
+    },
+
+    setupMediaCall: (call, peerId) => {
+        state.mediaConns[peerId] = call;
+
+        call.on('stream', (remoteStream) => {
+            // Create Audio Element
+            if (!document.getElementById(`audio-${peerId}`)) {
+                const audio = document.createElement('audio');
+                audio.id = `audio-${peerId}`;
+                audio.srcObject = remoteStream;
+                audio.autoplay = true;
+                audio.controls = false; // Hidden
+                document.getElementById('audio-container').appendChild(audio);
+                
+                app.updateParticipantsUI();
+            }
+        });
+
+        call.on('close', () => {
+            app.cleanupPeerAudio(peerId);
+        });
+        
+        call.on('error', () => app.cleanupPeerAudio(peerId));
+    },
+
+    cleanupPeerAudio: (peerId) => {
+        const el = document.getElementById(`audio-${peerId}`);
+        if (el) el.remove();
+        delete state.mediaConns[peerId];
+        state.participants.delete(peerId);
+        app.updateParticipantsUI();
+        
+        // If no one left, end call
+        if (Object.keys(state.mediaConns).length === 0 && state.callActive) {
+            app.endCall();
+        }
+    },
+
+    updateParticipantsUI: () => {
+        const div = document.getElementById('active-participants');
+        div.innerHTML = "CONNECTED: " + Array.from(state.participants).join(', ');
+    },
+
+    toggleMute: () => {
+        if (!state.localStream) return;
+        state.isMuted = !state.isMuted;
+        state.localStream.getAudioTracks()[0].enabled = !state.isMuted;
+        document.getElementById('btn-mute').innerText = state.isMuted ? "UNMUTE" : "MUTE MIC";
+        document.getElementById('btn-mute').style.background = state.isMuted ? "white" : "black";
+        document.getElementById('btn-mute').style.color = state.isMuted ? "black" : "white";
+    },
+
+    endCall: () => {
+        // Stop Local Stream
+        if (state.localStream) {
+            state.localStream.getTracks().forEach(track => track.stop());
+            state.localStream = null;
+        }
+
+        // Close all peer connections
+        Object.values(state.mediaConns).forEach(call => call.close());
+        state.mediaConns = {};
+        state.participants.clear();
+        state.callActive = false;
+        state.isMuted = false;
+
+        // Clean DOM
+        document.getElementById('audio-container').innerHTML = '';
+        document.getElementById('call-modal').classList.add('hidden');
+        
+        // Reset buttons
+        document.getElementById('btn-accept').classList.remove('hidden');
+        document.getElementById('btn-decline').classList.remove('hidden');
+        document.getElementById('btn-mute').classList.add('hidden');
+    },
+
+    showCallModal: (isActive, text, isInCallMode) => {
+        const modal = document.getElementById('call-modal');
+        document.getElementById('call-text').innerText = text;
+        
+        if (isActive) modal.classList.remove('hidden');
+        else modal.classList.add('hidden');
+
+        if (isInCallMode) {
+            state.callActive = true;
+            document.getElementById('btn-accept').classList.add('hidden');
+            document.getElementById('btn-decline').innerText = "HANG UP";
+            document.getElementById('btn-mute').classList.remove('hidden');
+        } else {
+            document.getElementById('btn-accept').classList.remove('hidden');
+            document.getElementById('btn-decline').innerText = "DECLINE";
+            document.getElementById('btn-mute').classList.add('hidden');
+        }
+    },
+
+    escapeHtml: (unsafe) => {
+        return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+};
+
+/* --- BOOT --- */
+window.onload = app.init;
+
+// Keyboard Send
+document.getElementById('msg-input').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') app.sendMessage();
+});
+</script>
+</body>
+</html>
+
