@@ -1,932 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charsecharsett="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ThrillYaari - Platform Pitch Document</title>
+    <title>CV - Pratham Sukhadia</title>
     <style>
-        :root {
-            --bg-body: #f5f5f7;
-            --bg-card: #ffffff;
-            --text-main: #1d1d1f;
-            --text-secondary: #86868b;
-            --border-color: #d2d2d7;
-            --accent--accent: #0071e3;
-            --success: #34c759;
-            --warning: #ff9f0a;
-            --danger: #ff3b30;
-            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        /* Corporate Style Settings */
         body {
-            font-family: var(--font-stack);
-            background-color: var(--bg-body);
-            color: var(--text-main);
+            font-family: 'Times New Roman', Times, serif;
             line-height: 1.5;
-            padding: 40px;
-        }
-
-        .container {
-            max-width: 1000px;
+            color: #000;
+            max-width: 850px;
             margin: 0 auto;
-            background: white;
-            padding: 60px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            border-radius: 12px;
+            padding: 40px;
+            background-color: #fff;
         }
 
-        /* TYPOGRAPHY */
-        h1 { font-size: 32px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
-        h2 { font-size: 24px; font-weight: 600; margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid var(--bg-body); padding-bottom: 10px; }
-        h3 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-main); }
-        h4 { font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.5px; }
-        p { margin-bottom: 15px; color: #424245; }
-        ul { margin-bottom: 20px; padding-left: 20px; }
-        li { margin-bottom: 8px; color: #424245; }
-
-        /* SECTIONS */
-        .cover-page { text-align: center; padding: 60px 0 100px 0; border-bottom: 1px solid var(--border-color); }
-        .section { margin-bottom: 60px; }
-        
-        .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
-        .role-card { background: var(--bg-body); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
-        .role-title { font-weight: 700; margin-bottom: 5px; }
-        .role-desc { font-size: 13px; color: var(--text-secondary); }
-
-        /* WIREFRAME STYLES - GENERAL */
-        .wf-wrapper {
-            margin-bottom: 50px;
-            page-break-inside: avoid;
-        }
-        .wf-title {
-            font-family: monospace;
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-            display: block;
-        }
-        .wf-caption {
-            background: #fbfbfd;
-            border-left: 4px solid var(--accent);
-            padding: 15px;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #424245;
-        }
-        .wf-caption strong { display: block; margin-bottom: 4px; color: var(--text-main); }
-
-        /* DESKTOP WIREFRAME UI */
-        .desktop-screen {
-            width: 100%;
-            height: 450px; /* Fixed height for consistency */
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            display: grid;
-            grid-template-columns: 200px 1fr; /* Sidebar | Content */
-            overflow: hidden;
-            font-size: 12px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        
-        .ds-sidebar {
-            background: #f5f5f7;
-            border-right: 1px solid var(--border-color);
-            padding: 15px;
-        }
-        .ds-nav-item { padding: 8px 10px; margin-bottom: 4px; border-radius: 4px; color: #424245; cursor: default; }
-        .ds-nav-item.active { background: #e5e5e5; color: black; font-weight: 600; }
-        
-        .ds-content {
-            padding: 20px;
-            overflow-y: hidden;
-            background: white;
-            display: flex;
-            flex-direction: column;
+        /* Header Section */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
         }
 
-        .ds-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .ds-title { font-size: 18px; font-weight: 600; }
-        .ds-actions { display: flex; gap: 10px; }
-        .btn { padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: white; font-size: 11px; }
-        .btn-primary { background: var(--text-main); color: white; border: none; }
-
-        .ds-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .ds-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .ds-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-
-        .ds-card { border: 1px solid #eee; padding: 12px; border-radius: 6px; }
-        .ds-card-label { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; margin-bottom: 4px; }
-        .ds-card-value { font-size: 16px; font-weight: 600; }
-        .ds-card-sub { font-size: 10px; color: var(--success); margin-top: 4px; }
-
-        .ds-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        .ds-table th { text-align: left; border-bottom: 1px solid var(--border-color); padding: 8px; color: var(--text-secondary); font-weight: 500; }
-        .ds-table td { border-bottom: 1px solid #eee; padding: 8px; color: #333; }
-        .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; }
-        .st-green { background: #e1f7e5; color: #1a7f37; }
-        .st-orange { background: #fff4e5; color: #b56805; }
-        .st-red { background: #ffebeb; color: #cf222e; }
-
-        /* MOBILE WIREFRAME UI */
-        .mobile-frame-wrapper {
-            display: flex;
-            justify-content: center;
-            background: #f5f5f7;
-            padding: 20px;
-            border-radius: 8px;
+        h1 {
+            margin: 0;
+            font-size: 24pt;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .mobile-screen {
-            width: 280px;
-            height: 500px;
-            background: white;
-            border: 8px solid #333;
-            border-radius: 24px;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
+        .contact-info {
+            margin-top: 10px;
+            font-size: 11pt;
         }
 
-        .ms-header {
-            background: var(--text-main);
-            color: white;
-            padding: 15px;
-            font-size: 14px;
-            font-weight: 600;
+        .contact-info span {
+            margin: 0 5px;
+        }
+
+        a {
+            color: #000;
+            text-decoration: none;
+        }
+
+        /* Section Headings */
+        h2 {
+            font-size: 14pt;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        /* Content Formatting */
+        .entry {
+            margin-bottom: 20px;
+        }
+
+        .entry-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: baseline;
+            margin-bottom: 5px;
         }
 
-        .ms-content {
-            flex: 1;
-            padding: 15px;
-            background: #f5f5f7;
-            overflow-y: hidden;
+        .title {
+            font-weight: bold;
+            font-size: 12pt;
         }
 
-        .ms-card {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 10px;
+        .subtitle {
+            font-style: italic;
+            font-size: 12pt;
         }
-        
-        .ms-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .ms-label { font-size: 10px; color: var(--text-secondary); }
-        .ms-val { font-size: 12px; font-weight: 500; }
-        
-        .ms-btn {
-            background: var(--accent);
-            color: white;
-            text-align: center;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-top: 10px;
-            font-weight: 500;
+
+        .date {
+            font-weight: bold;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        ul {
+            margin-top: 5px;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 3px;
+            text-align: justify;
+        }
+
+        /* Skills Table Layout */
+        .skills-grid {
+            display: table;
             width: 100%;
-            display: block;
-            border: none;
+        }
+        .skill-category {
+            font-weight: bold;
+            width: 150px;
+            display: table-cell;
+            padding-bottom: 5px;
+        }
+        .skill-list {
+            display: table-cell;
+            padding-bottom: 5px;
         }
         
-        .ms-nav {
-            background: white;
-            border-top: 1px solid #eee;
-            padding: 10px;
-            display: flex;
-            justify-content: space-around;
+        /* Print Optimization */
+        @media print {
+            body {
+                padding: 0;
+                font-size: 11pt;
+            }
+            a {
+                text-decoration: none;
+                color: #000;
+            }
         }
-        .ms-nav-icon { width: 20px; height: 20px; background: #ddd; border-radius: 4px; }
-
     </style>
 </head>
 <body>
 
-    <div class="container">
-
-        <!-- SECTION 1: COVER -->
-        <div class="cover-page">
-            <h1>ThrillYaari</h1>
-            <p style="font-size: 18px; color: var(--text-secondary);">Unified Travel Operations & Management Platform</p>
-            <div style="width: 60px; height: 4px; background: var(--text-main); margin: 30px auto;"></div>
-            <p style="max-width: 600px; margin: 0 auto;">
-                A comprehensive digital operating system designed to replace spreadsheets and WhatsApp with a centralized, accountable, and financial-first management tool for end-to-end trip execution.
-            </p>
+    <header>
+        <h1>Pratham Sukhadia</h1>
+        <div class="contact-info">
+            <span>Nadiad, Gujarat</span> |
+            <span>+91 91731 09155</span> |
+            <span><a href="mailto:sukhadiapratham952@gmail.com">sukhadiapratham952@gmail.com</a></span> <br>
+            <span><a href="https://pratham-sukhadia.github.io" target="_blank">pratham-sukhadia.github.io</a></span>
         </div>
+    </header>
 
-        <!-- SECTION 2: BUSINESS PROBLEM -->
-        <div class="section">
-            <h2>The Business Problem</h2>
-            <p>Running a travel company involves dozens of moving parts. Currently, operations are fragmented and risky:</p>
+    <section>
+        <h2>Professional Profile</h2>
+        <p>
+            Dedicated final-year BCA student at CMPICA, Charusat, with a focused interest in Software Architecture and UI/UX Design. Combines technical proficiency in Java and Web Technologies with practical experience in digital marketing and design. Seeking a challenging role to leverage skills in creating efficient software solutions and intuitive user experiences.
+        </p>
+    </section>
+
+    <section>
+        <h2>Education</h2>
+        
+        <div class="entry">
+            <div class="entry-header">
+                <div>
+                    <span class="title">Bachelor of Computer Applications (BCA)</span><br>
+                    <span class="subtitle">CMPICA, Charusat University</span>
+                </div>
+                <div class="date">Exp. July 2026</div>
+            </div>
             <ul>
-                <li><strong>Information Silos:</strong> Trip details live in Excel, driver details in WhatsApp, expenses in pockets.</li>
-                <li><strong>Financial Leakage:</strong> Cash given to drivers/guides is hard to track. Over-budgeting is noticed only after the trip ends.</li>
-                <li><strong>Vendor Chaos:</strong> "Who is the driver for the Manali group?" leads to frantic phone calls.</li>
-                <li><strong>Lack of Real-time Visibility:</strong> Owners don't know if a guest has checked in or if a vehicle has broken down until it's a crisis.</li>
+                <li>Current Semester (Sem 6) CGPA: 6.55</li>
             </ul>
         </div>
 
-        <!-- SECTION 3: SOLUTION -->
-        <div class="section">
-            <h2>The Solution: One Source of Truth</h2>
-            <p>ThrillYaari Platform connects the <strong>Head Office</strong> (Planning & Finance) with the <strong>Field Staff</strong> (Guides & Drivers) in real-time.</p>
+        <div class="entry">
+            <div class="entry-header">
+                <div>
+                    <span class="title">Higher Secondary Certificate (HSC) - Commerce</span><br>
+                    <span class="subtitle">Vision School Of Science</span>
+                </div>
+                <div class="date">Completed May 2023</div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Work Experience</h2>
+        
+        <div class="entry">
+            <div class="entry-header">
+                <div>
+                    <span class="title">SMO, SEO & Designer</span><br>
+                    <span class="subtitle">AcoTax, Nadiad</span>
+                </div>
+                <div class="date">Dec 2023 – Present</div>
+            </div>
             <ul>
-                <li><strong>Centralized Booking & Planning:</strong> Every trip is a digital project.</li>
-                <li><strong>Real-time Field App:</strong> Guides and Vendors see their schedule and report statuses via mobile.</li>
-                <li><strong>Live Expense Tracking:</strong> Cash flows are recorded immediately.</li>
-                <li><strong>Vendor CRM:</strong> A permanent database of hotels, drivers, and activity providers.</li>
+                <li>Managed social media accounts, resulting in increased user engagement and brand visibility.</li>
+                <li>Designed professional marketing materials and graphics using Canva and Adobe Photoshop.</li>
+                <li>Optimized website content for SEO keywords to improve search engine rankings and organic traffic.</li>
             </ul>
         </div>
+    </section>
 
-        <!-- SECTION 4: ROLES -->
-        <div class="section">
-            <h2>User Roles & Hierarchy</h2>
-            <div class="role-grid">
-                <div class="role-card">
-                    <div class="role-title">Admin / Owner</div>
-                    <div class="role-desc">Full visibility. Financial approvals. Vendor settlements. Profit/Loss analysis.</div>
+    <section>
+        <h2>Technical Skills</h2>
+        <div class="skills-grid">
+            <div class="skill-category">Languages:</div>
+            <div class="skill-list">HTML, CSS, JavaScript, Java, SQL</div>
+        </div>
+        <div class="skills-grid">
+            <div class="skill-category">Design Tools:</div>
+            <div class="skill-list">Figma, Adobe XD, Photoshop, Canva</div>
+        </div>
+        <div class="skills-grid">
+            <div class="skill-category">Core Skills:</div>
+            <div class="skill-list">Software Architecture, UI/UX Design</div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Certifications</h2>
+        <div class="entry">
+            <div class="entry-header">
+                <div>
+                    <span class="title">Python 101: Develop Your First Python Program</span><br>
+                    <span class="subtitle">Coursera</span>
                 </div>
-                <div class="role-card">
-                    <div class="role-title">Ops Manager</div>
-                    <div class="role-desc">Trip creation. Resource assignment (Guide/Car). Monitoring active trips.</div>
-                </div>
-                <div class="role-card">
-                    <div class="role-title">Travel Agent (Sales)</div>
-                    <div class="role-desc">Input leads. Convert to bookings. View availability.</div>
-                </div>
-                <div class="role-card">
-                    <div class="role-title">Trip Leader / Guide</div>
-                    <div class="role-desc">Mobile access. View itinerary. Upload bills. Report incidents. Mark attendance.</div>
-                </div>
-                <div class="role-card">
-                    <div class="role-title">Vendor (Transport)</div>
-                    <div class="role-desc">Receive booking orders. Assign driver/vehicle details. Upload invoices.</div>
-                </div>
-                <div class="role-card">
-                    <div class="role-title">Vendor (Hotel)</div>
-                    <div class="role-desc">Receive rooming lists. Confirm check-ins. Submit final bills.</div>
-                </div>
+                <div class="date">Oct 2025</div>
             </div>
+            <ul><li>Grade: 83%</li></ul>
         </div>
 
-        <!-- SECTION 5: WIREFRAMES -->
-        <div class="section">
-            <h2>System Wireframes</h2>
-            <p style="margin-bottom: 40px; font-style: italic;">The following screens demonstrate the visual flow of the application. The system is divided into "Office View" (Desktop) and "Field View" (Mobile).</p>
-
-            <!-- GROUP: DASHBOARDS & OVERVIEW -->
-            <h4>OFFICE MODULE: MANAGEMENT DASHBOARD</h4>
-
-            <!-- WF 1 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">01. Owner Dashboard</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar">
-                        <div class="ds-nav-item active">Dashboard</div>
-                        <div class="ds-nav-item">Tours</div>
-                        <div class="ds-nav-item">Bookings</div>
-                        <div class="ds-nav-item">Vendors</div>
-                        <div class="ds-nav-item">Finance</div>
-                    </div>
-                    <div class="ds-content">
-                        <div class="ds-header">
-                            <div class="ds-title">Overview: Oct 2025</div>
-                            <div class="ds-actions"><button class="btn">Download Report</button></div>
-                        </div>
-                        <div class="ds-grid-4">
-                            <div class="ds-card">
-                                <div class="ds-card-label">Revenue (MTD)</div>
-                                <div class="ds-card-value">₹ 45,20,000</div>
-                                <div class="ds-card-sub">↑ 12% vs last month</div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Active Trips</div>
-                                <div class="ds-card-value">8</div>
-                                <div class="ds-card-sub">3 Ending Today</div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Pending Payments</div>
-                                <div class="ds-card-value">₹ 3,40,000</div>
-                                <div class="ds-card-sub text-danger">Requires Action</div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Pax Travelling</div>
-                                <div class="ds-card-value">142</div>
-                            </div>
-                        </div>
-                        <div class="ds-card">
-                            <div class="ds-card-label">Financial Trend (6 Months)</div>
-                            <div style="height: 150px; background: #eee; display: flex; align-items: flex-end; gap: 10px; padding: 10px;">
-                                <div style="width: 15%; height: 40%; background: #ccc;"></div>
-                                <div style="width: 15%; height: 50%; background: #ccc;"></div>
-                                <div style="width: 15%; height: 45%; background: #ccc;"></div>
-                                <div style="width: 15%; height: 60%; background: #ccc;"></div>
-                                <div style="width: 15%; height: 80%; background: var(--text-main);"></div>
-                                <div style="width: 15%; height: 75%; background: #ccc;"></div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="entry">
+            <div class="entry-header">
+                <div>
+                    <span class="title">Oracle Java Foundations</span><br>
+                    <span class="subtitle">Oracle</span>
                 </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> High-level command center for the Business Owner.
-                    <strong>Key Insight:</strong> Immediate view of money in vs. money out, and current operational load.
-                </div>
+                <div class="date">Sept 2025</div>
             </div>
-
-            <!-- WF 2 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">02. Active Tours Overview</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar">
-                        <div class="ds-nav-item">Dashboard</div>
-                        <div class="ds-nav-item active">Active Tours</div>
-                    </div>
-                    <div class="ds-content">
-                        <div class="ds-header">
-                            <div class="ds-title">Live Operations</div>
-                            <div class="ds-actions"><button class="btn btn-primary">+ New Issue</button></div>
-                        </div>
-                        <table class="ds-table">
-                            <thead><tr><th>Tour Name</th><th>Location</th><th>Guide</th><th>Pax</th><th>Status</th><th>Alerts</th></tr></thead>
-                            <tbody>
-                                <tr><td>Manali Backpackers</td><td>Manali, HP</td><td>Amit Kumar</td><td>12</td><td><span class="status-badge st-green">On Track</span></td><td>-</td></tr>
-                                <tr><td>Spiti Roadtrip</td><td>Kaza, HP</td><td>Rahul S.</td><td>8</td><td><span class="status-badge st-orange">Delayed</span></td><td>Vehicle Issue</td></tr>
-                                <tr><td>Kerala Honeymoon</td><td>Munnar, KL</td><td>(Vendor)</td><td>2</td><td><span class="status-badge st-green">Checked In</span></td><td>-</td></tr>
-                                <tr><td>Goa Corporate</td><td>North Goa</td><td>Suresh T.</td><td>45</td><td><span class="status-badge st-green">Active</span></td><td>-</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> The "Air Traffic Control" screen for Operations Managers.
-                    <strong>Key Insight:</strong> Quickly spot which group is delayed or facing issues without calling 10 different people.
-                </div>
-            </div>
-
-            <!-- WF 3 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">03. Upcoming Tours Calendar</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar">
-                        <div class="ds-nav-item">Dashboard</div>
-                        <div class="ds-nav-item active">Calendar</div>
-                    </div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">November 2025 Schedule</div></div>
-                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 11px;">
-                            <div style="padding: 10px; background: #eee;">Mon</div><div style="padding: 10px; background: #eee;">Tue</div><div style="padding: 10px; background: #eee;">Wed</div><div style="padding: 10px; background: #eee;">Thu</div><div style="padding: 10px; background: #eee;">Fri</div><div style="padding: 10px; background: #eee;">Sat</div><div style="padding: 10px; background: #eee;">Sun</div>
-                            
-                            <!-- Calendar Grid Simulation -->
-                            <div style="height: 80px; border: 1px solid #eee;">1</div>
-                            <div style="height: 80px; border: 1px solid #eee;">2</div>
-                            <div style="height: 80px; border: 1px solid #eee; background: #f0f8ff;"><div style="background: var(--accent); color: white; padding: 2px; border-radius: 2px; font-size: 9px; margin-top: 15px;">Manali Start</div></div>
-                            <div style="height: 80px; border: 1px solid #eee;">4</div>
-                            <div style="height: 80px; border: 1px solid #eee; background: #f0f8ff;"><div style="background: var(--success); color: white; padding: 2px; border-radius: 2px; font-size: 9px; margin-top: 15px;">Kasol End</div></div>
-                            <div style="height: 80px; border: 1px solid #eee;">6</div>
-                            <div style="height: 80px; border: 1px solid #eee;">7</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Planning and resource allocation.
-                    <strong>Key Insight:</strong> Visualizes overlap to prevent guide/vehicle double-booking.
-                </div>
-            </div>
-
-            <!-- GROUP: TOUR CREATION & MANAGEMENT -->
-            <h4>OFFICE MODULE: TOUR PLANNING</h4>
-
-            <!-- WF 4 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">04. Tour Creation Screen</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Create Tour</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Create New Trip Package</div></div>
-                        <div class="ds-grid-2">
-                            <div class="ds-card">
-                                <div class="ds-card-label">Tour Name</div>
-                                <div style="border: 1px solid #ccc; height: 30px; margin-top: 5px; background: #f9f9f9;"></div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Tour Code (SKU)</div>
-                                <div style="border: 1px solid #ccc; height: 30px; margin-top: 5px; background: #f9f9f9;"></div>
-                            </div>
-                        </div>
-                        <div class="ds-grid-3">
-                            <div class="ds-card"><div class="ds-card-label">Start Date</div><div style="border-bottom: 1px solid #ccc; margin-top: 15px;"></div></div>
-                            <div class="ds-card"><div class="ds-card-label">End Date</div><div style="border-bottom: 1px solid #ccc; margin-top: 15px;"></div></div>
-                            <div class="ds-card"><div class="ds-card-label">Total Pax Capacity</div><div style="border-bottom: 1px solid #ccc; margin-top: 15px;"></div></div>
-                        </div>
-                        <div class="ds-card" style="margin-top: 15px; height: 100px;">
-                            <div class="ds-card-label">Route / Itinerary Summary</div>
-                            <div style="color: #ccc; margin-top: 10px;">Enter cities (e.g. Delhi -> Manali -> Sissu -> Delhi)...</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Initiating a new product or batch in the system.
-                </div>
-            </div>
-
-            <!-- WF 5 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">05. Tour Detail Overview (The Master Screen)</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Tour Details</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header">
-                            <div class="ds-title">TY-2025-OCT-MANALI (Batch 4)</div>
-                            <div class="status-badge st-green" style="font-size: 12px; padding: 5px 10px;">Confirmed</div>
-                        </div>
-                        <div style="display: flex; gap: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-size: 12px; font-weight: 600;">
-                            <span style="border-bottom: 2px solid var(--accent); color: var(--accent);">Overview</span>
-                            <span style="color: #999;">Pax List</span>
-                            <span style="color: #999;">Itinerary</span>
-                            <span style="color: #999;">Financials</span>
-                        </div>
-                        <div class="ds-grid-3">
-                            <div class="ds-card">
-                                <div class="ds-card-label">Lead Guide</div>
-                                <div class="ds-card-value">Amit Kumar</div>
-                                <div class="ds-card-sub">Phone: +91 98980...</div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Transport Vendor</div>
-                                <div class="ds-card-value">Himalayan Wheels</div>
-                                <div class="ds-card-sub">Vehicle: Tempo Traveller (HP-01...)</div>
-                            </div>
-                            <div class="ds-card">
-                                <div class="ds-card-label">Advance Given</div>
-                                <div class="ds-card-value">₹ 15,000</div>
-                                <div class="ds-card-sub">Via Bank Transfer</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> The single source of truth for a specific trip batch. Links guides, vendors, and money.
-                </div>
-            </div>
-
-            <!-- WF 6 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">06. Itinerary Timeline View</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Itinerary</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Day-wise Plan</div></div>
-                        <div class="ds-card" style="margin-bottom: 10px;">
-                            <div class="ds-card-label">Day 1: Delhi to Manali</div>
-                            <div style="font-size: 11px; margin-top: 5px;">Departs: Majnu Ka Tilla, 6:00 PM. Dinner stop at Murthal.</div>
-                        </div>
-                        <div class="ds-card" style="margin-bottom: 10px;">
-                            <div class="ds-card-label">Day 2: Manali Arrival</div>
-                            <div style="font-size: 11px; margin-top: 5px;">Check-in at Hotel Snow View. Evening briefing at Old Manali Cafe.</div>
-                        </div>
-                        <div class="ds-card" style="margin-bottom: 10px;">
-                            <div class="ds-card-label">Day 3: Solang Valley</div>
-                            <div style="font-size: 11px; margin-top: 5px;">Activity: Paragliding. Lunch at Valley. Return by 4 PM.</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Defines the operational schedule. This data syncs to the Guide's mobile app.
-                </div>
-            </div>
-
-            <!-- WF 7 & 8 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">07 & 08. Guide & Vendor Assignment</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Assignments</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Resource Allocation</div></div>
-                        <div class="ds-grid-2">
-                            <div>
-                                <h4>Assign Trip Leader</h4>
-                                <div class="ds-card">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span>Select Guide...</span>
-                                        <button class="btn">Search</button>
-                                    </div>
-                                    <div style="margin-top: 10px; padding: 5px; background: #f5f5f7; border-radius: 4px;">
-                                        <strong>Amit Kumar</strong> (Available)<br>
-                                        <span style="font-size: 10px; color: green;">Verified</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <h4>Assign Transport Vendor</h4>
-                                <div class="ds-card">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span>Select Vendor...</span>
-                                        <button class="btn">Search</button>
-                                    </div>
-                                    <div style="margin-top: 10px; padding: 5px; background: #f5f5f7; border-radius: 4px;">
-                                        <strong>Singh Travels</strong> (Available)<br>
-                                        <span style="font-size: 10px;">Rate: ₹24/km</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Connecting internal staff and external vendors to the trip. Triggers notifications to them.
-                </div>
-            </div>
-
-            <!-- GROUP: VENDOR MANAGEMENT -->
-            <h4>OFFICE MODULE: VENDOR DATABASE</h4>
-
-            <!-- WF 9 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">09. Vendor Directory</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Directory</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header">
-                            <div class="ds-title">All Vendors</div>
-                            <div class="ds-actions"><input type="text" placeholder="Search..." style="padding: 5px;"></div>
-                        </div>
-                        <table class="ds-table">
-                            <thead><tr><th>Vendor Name</th><th>Type</th><th>City</th><th>Contact</th><th>Rating</th><th>Balance</th></tr></thead>
-                            <tbody>
-                                <tr><td>Hotel Snow View</td><td>Hotel</td><td>Manali</td><td>9898...</td><td>4.5/5</td><td>₹ 0</td></tr>
-                                <tr><td>Singh Travels</td><td>Transport</td><td>Delhi</td><td>9999...</td><td>4.8/5</td><td>₹ 12,000 (Due)</td></tr>
-                                <tr><td>Adventure Bros</td><td>Activity</td><td>Rishikesh</td><td>8888...</td><td>4.2/5</td><td>₹ 0</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> A CRM for suppliers. Replaces the owner's phone book.
-                </div>
-            </div>
-
-            <!-- WF 10 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">10. Vendor Detail Profile</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Profile</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Singh Travels</div><button class="btn">Edit</button></div>
-                        <div class="ds-grid-3">
-                            <div class="ds-card"><div class="ds-card-label">GSTIN</div><div class="ds-card-value">07AAAA...</div></div>
-                            <div class="ds-card"><div class="ds-card-label">Contact Person</div><div class="ds-card-value">Mr. Rajender</div></div>
-                            <div class="ds-card"><div class="ds-card-label">Payment Terms</div><div class="ds-card-value">50% Advance</div></div>
-                        </div>
-                        <h4>Registered Vehicles</h4>
-                        <table class="ds-table">
-                            <tr><td>Tempo Traveller</td><td>DL-1VC-4848</td><td>12 Seater</td><td>Active</td></tr>
-                            <tr><td>Innova Crysta</td><td>DL-1TA-1122</td><td>7 Seater</td><td>Active</td></tr>
-                        </table>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Stores compliance data (GST, RC) and agreements.
-                </div>
-            </div>
-
-            <!-- WF 13 & 14 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">13 & 14. Hotel Booking Management</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Bookings</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Hotel Reservations</div></div>
-                        <div class="ds-card" style="margin-bottom: 15px;">
-                            <div class="ds-grid-4">
-                                <div><div class="ds-card-label">Tour</div>Manali Batch 4</div>
-                                <div><div class="ds-card-label">Hotel</div>Snow View</div>
-                                <div><div class="ds-card-label">Dates</div>Oct 12 - Oct 15</div>
-                                <div><div class="ds-card-label">Status</div><span class="status-badge st-green">Confirmed</span></div>
-                            </div>
-                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; font-size: 11px;">
-                                <strong>Room Plan:</strong> 4 Double Rooms, 2 Triple Rooms (Total 14 Pax). Meal Plan: MAP (Breakfast + Dinner).
-                            </div>
-                        </div>
-                         <div class="ds-card">
-                            <div class="ds-grid-4">
-                                <div><div class="ds-card-label">Tour</div>Spiti Batch 1</div>
-                                <div><div class="ds-card-label">Hotel</div>Kaza Homestay</div>
-                                <div><div class="ds-card-label">Dates</div>Oct 14 - Oct 16</div>
-                                <div><div class="ds-card-label">Status</div><span class="status-badge st-orange">Pending</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Replaces email threads for room blocking. Tracks specific room plans and meal inclusions.
-                </div>
-            </div>
-
-            <!-- GROUP: FINANCIAL CONTROL -->
-            <h4>OFFICE MODULE: FINANCIAL CONTROL</h4>
-
-            <!-- WF 16 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">16. Expense Overview (Per Tour)</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Expenses</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header">
-                            <div class="ds-title">Expenses: Manali Batch 4</div>
-                            <div class="ds-card-value">Total: ₹ 1,45,000</div>
-                        </div>
-                        <table class="ds-table">
-                            <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Submitted By</th><th>Proof</th></tr></thead>
-                            <tbody>
-                                <tr><td>Oct 12</td><td>Fuel</td><td>Diesel Tank Full</td><td>₹ 4,500</td><td>Driver (App)</td><td><a href="#">View</a></td></tr>
-                                <tr><td>Oct 12</td><td>Food</td><td>Dinner at Murthal</td><td>₹ 2,200</td><td>Guide Amit</td><td><a href="#">View</a></td></tr>
-                                <tr><td>Oct 13</td><td>Permit</td><td>Rohtang Permit</td><td>₹ 500</td><td>Office</td><td>-</td></tr>
-                                <tr><td>Oct 13</td><td>Hotel</td><td>Advance Payment</td><td>₹ 10,000</td><td>Office</td><td>-</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> A consolidated ledger of every penny spent on a specific trip.
-                    <strong>Key Insight:</strong> Merges expenses from Office (Pre-paid) and Field (Cash spent by Guide).
-                </div>
-            </div>
-
-            <!-- WF 18 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">18. Budget vs Actual Comparison</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Budgeting</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Profitability Check</div></div>
-                        <table class="ds-table">
-                            <thead><tr><th>Category</th><th>Budgeted Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead>
-                            <tbody>
-                                <tr><td>Transport</td><td>₹ 24,000</td><td>₹ 24,500</td><td><span class="st-red">+ ₹500</span></td></tr>
-                                <tr><td>Accommodation</td><td>₹ 40,000</td><td>₹ 38,000</td><td><span class="st-green">- ₹2,000</span></td></tr>
-                                <tr><td>Activities</td><td>₹ 12,000</td><td>₹ 12,000</td><td><span>0</span></td></tr>
-                                <tr><td>Misc/Food</td><td>₹ 5,000</td><td>₹ 8,200</td><td><span class="st-red">+ ₹3,200</span></td></tr>
-                                <tr style="font-weight: bold; background: #f9f9f9;"><td>TOTAL</td><td>₹ 81,000</td><td>₹ 82,700</td><td>Over Budget</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Shows the owner exactly where profit is leaking (e.g., Guides spending too much on "Misc/Food").
-                </div>
-            </div>
-
-            <!-- WF 22 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">22. Alerts & Exceptions Dashboard</span>
-                <div class="desktop-screen">
-                    <div class="ds-sidebar"><div class="ds-nav-item active">Alerts</div></div>
-                    <div class="ds-content">
-                        <div class="ds-header"><div class="ds-title">Operational Exceptions</div></div>
-                        <div class="ds-card" style="border-left: 4px solid var(--danger); margin-bottom: 10px;">
-                            <div class="ds-card-label">High Severity</div>
-                            <div style="font-weight: 600;">Trip #402: Vehicle Breakdown Reported</div>
-                            <div style="font-size: 11px;">Reported by Guide Rahul at 10:30 AM. Location: Rohtang Pass.</div>
-                        </div>
-                        <div class="ds-card" style="border-left: 4px solid var(--warning); margin-bottom: 10px;">
-                            <div class="ds-card-label">Medium Severity</div>
-                            <div style="font-weight: 600;">Expense Anomaly: ₹5000 Lunch Bill</div>
-                            <div style="font-size: 11px;">Trip #405: Guide submitted unusually high food bill. Requires Approval.</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> Management by Exception. The owner only looks at things that are going wrong.
-                </div>
-            </div>
-
-            <!-- WF 24 -->
-            <div class="wf-wrapper">
-                <span class="wf-title">24. Final Trip Financial Report</span>
-                <div class="desktop-screen">
-                    <div class="ds-content" style="grid-column: 1 / -1;">
-                        <div class="ds-header" style="justify-content: center; flex-direction: column; align-items: center;">
-                            <div class="ds-title">Trip Closure Report: TY-2025-OCT-MANALI</div>
-                            <div style="color: var(--text-secondary); font-size: 12px;">Generated on Oct 20, 2025</div>
-                        </div>
-                        <div class="ds-grid-3">
-                            <div class="ds-card" style="text-align: center;">
-                                <div class="ds-card-label">Total Revenue</div>
-                                <div class="ds-card-value" style="color: var(--success);">₹ 1,80,000</div>
-                            </div>
-                            <div class="ds-card" style="text-align: center;">
-                                <div class="ds-card-label">Total Cost</div>
-                                <div class="ds-card-value" style="color: var(--danger);">₹ 1,10,000</div>
-                            </div>
-                            <div class="ds-card" style="text-align: center;">
-                                <div class="ds-card-label">Net Profit</div>
-                                <div class="ds-card-value">₹ 70,000 (38%)</div>
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px; text-align: center;">
-                            <button class="btn btn-primary">Close Trip & Archive</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> The final seal of approval. Once clicked, the trip is locked, and P&L is realized.
-                </div>
-            </div>
-
-
-            <!-- GROUP: MOBILE / FIELD APP -->
-            <h4>FIELD MODULE: GUIDE & DRIVER APP</h4>
-            <div class="wf-wrapper">
-                <div class="mobile-frame-wrapper">
-                    
-                    <!-- WF 25 -->
-                    <div class="mobile-screen" style="margin-right: 20px;">
-                        <div class="ms-header"><div>ThrillYaari</div><div>MENU</div></div>
-                        <div class="ms-content">
-                            <div style="text-align: center; margin-bottom: 20px;">
-                                <div style="font-size: 18px; font-weight: 700;">Good Morning, Amit</div>
-                                <div style="color: #666; font-size: 12px;">Trip Leader</div>
-                            </div>
-                            
-                            <div class="ms-card" style="border-left: 4px solid var(--accent);">
-                                <div class="ms-label">CURRENT TRIP</div>
-                                <div class="ms-val">Manali Batch 4</div>
-                                <div class="ms-label" style="margin-top: 5px;">STATUS</div>
-                                <div class="status-badge st-green">Active</div>
-                            </div>
-
-                            <button class="ms-btn" style="background: var(--text-main);">View Itinerary</button>
-                            <button class="ms-btn" style="background: white; color: var(--text-main); border: 1px solid #ccc;">Add Expense</button>
-                            <button class="ms-btn" style="background: white; color: var(--text-main); border: 1px solid #ccc;">Emergency SOS</button>
-                        </div>
-                        <div class="ms-nav">
-                            <div class="ms-nav-icon" style="background: var(--text-main);"></div>
-                            <div class="ms-nav-icon"></div>
-                            <div class="ms-nav-icon"></div>
-                        </div>
-                    </div>
-
-                    <!-- WF 26 -->
-                    <div class="mobile-screen" style="margin-right: 20px;">
-                        <div class="ms-header"><div>Day 2</div><div>Oct 12</div></div>
-                        <div class="ms-content">
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-val">08:00 AM</span><span class="status-badge st-green">Done</span></div>
-                                <div style="font-size: 12px;">Breakfast at Hotel</div>
-                            </div>
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-val">09:30 AM</span><span class="status-badge st-orange">Current</span></div>
-                                <div style="font-size: 12px;">Depart for Solang Valley</div>
-                                <button class="btn" style="margin-top: 5px; width: 100%;">Mark Departed</button>
-                            </div>
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-val">01:00 PM</span></div>
-                                <div style="font-size: 12px;">Lunch Stop</div>
-                            </div>
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-val">05:00 PM</span></div>
-                                <div style="font-size: 12px;">Return to Hotel</div>
-                            </div>
-                        </div>
-                        <div class="ms-nav">
-                            <div class="ms-nav-icon"></div>
-                            <div class="ms-nav-icon" style="background: var(--text-main);"></div>
-                            <div class="ms-nav-icon"></div>
-                        </div>
-                    </div>
-
-                    <!-- WF 29 -->
-                    <div class="mobile-screen">
-                        <div class="ms-header"><div>Add Expense</div><div>X</div></div>
-                        <div class="ms-content">
-                            <div class="ms-label">AMOUNT (₹)</div>
-                            <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; font-size: 18px;">2,500</div>
-                            
-                            <div class="ms-label">CATEGORY</div>
-                            <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">Food / Meals</div>
-                            
-                            <div class="ms-label">DESCRIPTION</div>
-                            <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; height: 60px;">Lunch for 12 pax at Dhaba</div>
-
-                            <div class="ms-label">RECEIPT PHOTO</div>
-                            <div style="background: #e5e5e5; height: 80px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px; margin-bottom: 15px;">Tap to Camera</div>
-
-                            <button class="ms-btn">Submit Expense</button>
-                        </div>
-                    </div>
-
-                </div>
-                <div class="wf-caption">
-                    <strong>Purpose:</strong> The Guide's interface. Keeps them focused on execution and simplifies accounting.
-                </div>
-            </div>
-            
-            <!-- WF 31 & 35 -->
-             <div class="wf-wrapper">
-                <div class="mobile-frame-wrapper">
-                    
-                    <!-- WF 31 -->
-                    <div class="mobile-screen" style="margin-right: 20px;">
-                        <div class="ms-header"><div>Hotel Check-in</div></div>
-                        <div class="ms-content">
-                            <div class="ms-card">
-                                <div class="ms-label">HOTEL</div>
-                                <div class="ms-val">Snow View Resort</div>
-                            </div>
-                             <div class="ms-card">
-                                <div class="ms-label">ROOMING LIST</div>
-                                <div style="font-size: 11px; margin-top: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px;">1. Rahul + Anjali (Room 101)</div>
-                                <div style="font-size: 11px; margin-top: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px;">2. Sneha + Priya (Room 102)</div>
-                                <div style="font-size: 11px; margin-top: 5px;">3. Raj + Amit (Room 103)</div>
-                            </div>
-                            <button class="ms-btn" style="background: var(--success);">Confirm All Checked In</button>
-                            <div style="text-align: center; margin-top: 10px; font-size: 10px; color: #666;">(Geo-location will be tagged)</div>
-                        </div>
-                    </div>
-
-                    <!-- WF 35 -->
-                    <div class="mobile-screen">
-                        <div class="ms-header"><div>End of Day</div></div>
-                        <div class="ms-content">
-                            <div style="text-align: center; margin-bottom: 15px; font-weight: 600;">Day Summary</div>
-                            
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-label">Total Cash Spent</span><span class="ms-val">₹ 4,200</span></div>
-                            </div>
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-label">Incidents</span><span class="ms-val">None</span></div>
-                            </div>
-                            <div class="ms-card">
-                                <div class="ms-row"><span class="ms-label">Next Day Start</span><span class="ms-val">07:00 AM</span></div>
-                            </div>
-
-                            <div class="ms-label">DAILY REPORT LOG</div>
-                            <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; height: 80px; font-size: 11px;">Everything went smooth. Guests are happy. Driver needs diesel money for tomorrow.</div>
-
-                            <button class="ms-btn">Submit Day Report</button>
-                        </div>
-                    </div>
-                </div>
-                 <div class="wf-caption">
-                    <strong>Purpose:</strong> Accountability. Ensures the guide confirms guest safety and closes the financial loop daily.
-                </div>
-            </div>
-
+            <ul><li>Grade: 92%</li></ul>
         </div>
+    </section>
 
-        <!-- SECTION 6: FINANCIAL CONTROL EXPLANATION -->
-        <div class="section">
-            <h2>Financial Control Mechanism</h2>
-            <p>The system enforces a strict "Maker-Checker" financial discipline to prevent leakage.</p>
-            <div style="display: flex; gap: 20px; margin-top: 30px;">
-                <div style="flex: 1; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-                    <h3>1. Allocation</h3>
-                    <p style="font-size: 14px;">Before the trip, the Admin allocates a <strong>Trip Wallet</strong> (e.g., ₹20,000) to the Guide. This is recorded as a liability against the Guide.</p>
-                </div>
-                <div style="flex: 1; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-                    <h3>2. Utilization</h3>
-                    <p style="font-size: 14px;">During the trip, the Guide logs expenses via the App. They <strong>must</strong> upload a photo of the bill. The wallet balance decreases in real-time.</p>
-                </div>
-                <div style="flex: 1; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-                    <h3>3. Settlement</h3>
-                    <p style="font-size: 14px;">After the trip, the Guide cannot be assigned a new trip until they <strong>Settle</strong> the balance (return unspent cash or get reimbursed).</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 7: IMPORTANCE -->
-        <div class="section">
-            <h2>Why This System is Crucial</h2>
-            <ul>
-                <li><strong>Scalability:</strong> You cannot run 50 trips a month using WhatsApp groups. This system allows you to handle 10x volume with the same staff.</li>
-                <li><strong>Valuation:</strong> A business with digital systems and clean data is worth significantly more to investors than a chaotic agency.</li>
-                <li><strong>Vendor Trust:</strong> Vendors prefer working with agencies that have transparent payment ledgers and automated booking orders.</li>
-                <li><strong>Owner Freedom:</strong> The business owner can travel or take a break without operations collapsing, as the system enforces the process.</li>
-            </ul>
-        </div>
-
-        <!-- SECTION 8: CONCLUSION -->
-        <div class="section" style="border-top: 4px solid var(--text-main); padding-top: 40px;">
-            <h2>Conclusion</h2>
-            <p style="font-size: 18px; font-weight: 500;">
-                ThrillYaari Operating System is not just software; it is an infrastructure upgrade for your business. It transitions the company from "Person-Dependent" to "Process-Dependent," ensuring that every trip is profitable, every guest is safe, and every rupee is accounted for.
-            </p>
-            <div style="margin-top: 40px; text-align: center; color: var(--text-secondary); font-size: 12px;">
-                End of Document
-            </div>
-        </div>
-
-    </div>
+    <section>
+        <h2>Soft Skills</h2>
+        <ul>
+            <li>Teamwork & Collaboration</li>
+            <li>Effective Communication</li>
+            <li>Leadership</li>
+            <li>Problem-solving</li>
+        </ul>
+    </section>
 
 </body>
 </html>
